@@ -1,0 +1,30 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/linuxMWAIT/include",
+                "${workspaceFolder}/linuxMWAIT/include/generated",
+                "${workspaceFolder}/linuxMWAIT/include/uapi",
+                "${workspaceFolder}/linuxMWAIT/include/generated/uapi",
+                "${workspaceFolder}/linuxMWAIT/arch/x86/include",
+                "${workspaceFolder}/linuxMWAIT/arch/x86/include/generated",
+                "${workspaceFolder}/linuxMWAIT/arch/x86/include/uapi",
+                "${workspaceFolder}/linuxMWAIT/arch/x86/include/generated/uapi"
+            ],
+            "compilerArgs": [
+                "-nostdinc",
+                "-include", "${workspaceFolder}/linuxMWAIT/include/linux/kconfig.h",
+                "-include", "${workspaceFolder}/linuxMWAIT/include/linux/compiler_types.h"
+            ],
+            "defines": [
+                "__KERNEL__",
+                "MODULE"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

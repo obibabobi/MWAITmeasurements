@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "sysfs.h": "c",
+        "sysfs-generic.h": "c",
+        "measure.h": "c",
+        "measure-generic.h": "c",
+        "consts.h": "c"
+    },
+    "editor.tabSize": 8,
+    "editor.insertSpaces": false,
+}
