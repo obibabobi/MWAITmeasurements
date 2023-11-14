@@ -84,6 +84,16 @@ New measurements are added by calling the ```measure``` function.
 This function's parameters are the name of the specific measurement, then the parameters to be used when inserting the kernel module and finally the name of the folder to put the results in.
 For information on the available parameters of the kernel module, please execute ```modinfo``` on the compiled module.
 
+## Development
+
+If, during development, you want to compile the kernel module on a machine where the custom kernel is not installed, you can easily compile against the ```linuxMWAIT``` directory instead of the kernel build directory of your current system.
+For this, the submodule in ```linuxMWAIT``` must have been cloned and compiled.
+To enable compilation against it, the symbol ```PROJECT_BUILD_DIR``` has to be defined when running ```make``` in the ```mwait_deploy``` directory.
+There are multiple ways to do this, but the most comfortable way to enable this for the entire session is executing the following command once:
+```console
+user@controllbox:~# export PROJECT_BUILD_DIR=1
+```
+
 
 # Troubleshooting
 
