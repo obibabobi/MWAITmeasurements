@@ -13,7 +13,7 @@ plt.rcParams['figure.dpi'] = 300
 results_directory = sys.argv[1]
 
 def add_pkg_energy_consumption(df, directory, name):
-    new_df = pd.read_csv(directory+"/"+name+"/pkg_energy_consumption", names=[name])
+    new_df = pd.read_csv(directory+"/"+name+"/energy_consumption", names=[name])
     new_df /= 10000000
     df.insert(len(df.columns), name, new_df[name])
 
@@ -55,10 +55,10 @@ plot.figure.savefig('output/latencies.pdf')
 
 def add_pkg_cstates(unspecified, pc2, pc3, pc6, pc7, directory, name):
     total_tsc_series = pd.read_csv(directory+"/total_tsc", header=None).iloc[:,0]
-    pc2_series = pd.read_csv(directory+"/pkg_c2", header=None).iloc[:,0]
-    pc3_series = pd.read_csv(directory+"/pkg_c3", header=None).iloc[:,0]
-    pc6_series = pd.read_csv(directory+"/pkg_c6", header=None).iloc[:,0]
-    pc7_series = pd.read_csv(directory+"/pkg_c7", header=None).iloc[:,0]
+    pc2_series = pd.read_csv(directory+"/c2", header=None).iloc[:,0]
+    pc3_series = pd.read_csv(directory+"/c3", header=None).iloc[:,0]
+    pc6_series = pd.read_csv(directory+"/c6", header=None).iloc[:,0]
+    pc7_series = pd.read_csv(directory+"/c7", header=None).iloc[:,0]
 
     unspecified_mean = ((total_tsc_series - pc2_series - pc3_series - pc6_series - pc7_series)/total_tsc_series).mean()
     pc2_mean = (pc2_series/total_tsc_series).mean()
