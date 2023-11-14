@@ -6,6 +6,6 @@
 #define IA32_FIXED_CTR_CTRL (0x38d)
 #define IA32_PERF_GLOBAL_CTRL (0x38f)
 
-#include "../../measure-generic.h"
+#include "../../measure.h"
 
 #endif

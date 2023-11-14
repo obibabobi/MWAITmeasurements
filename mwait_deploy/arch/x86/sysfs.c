@@ -43,12 +43,9 @@ static const struct attribute_group *cpu_stats_groups[] = {
     &cpu_stats_group,
     NULL};
 
-ssize_t show_pkg_stats(struct kobject *kobj, struct attribute *attr, char *buf)
+ssize_t output_pkg_attributes(struct pkg_stat *stat, struct attribute *attr, char *buf)
 {
-	struct pkg_stat *stat = container_of(kobj, struct pkg_stat, kobject);
-	output_to_sysfs(energy_consumption);
 	output_to_sysfs(total_tsc);
-	output_to_sysfs(wakeup_time);
 	output_to_sysfs(c2);
 	output_to_sysfs(c3);
 	output_to_sysfs(c6);
@@ -56,10 +53,8 @@ ssize_t show_pkg_stats(struct kobject *kobj, struct attribute *attr, char *buf)
 	return 0;
 }
 
-ssize_t show_cpu_stats(struct kobject *kobj, struct attribute *attr, char *buf)
+ssize_t output_cpu_attributes(struct cpu_stat *stat, struct attribute *attr, char *buf)
 {
-	struct cpu_stat *stat = container_of(kobj, struct cpu_stat, kobject);
-	output_to_sysfs(wakeups);
 	output_to_sysfs(unhalted);
 	output_to_sysfs(c3);
 	output_to_sysfs(c6);
@@ -79,11 +74,35 @@ static const struct sysfs_ops pkg_sysfs_ops = {
 static const struct sysfs_ops cpu_sysfs_ops = {
     .show = show_cpu_stats,
     .store = ignore_write};
-const struct kobj_type pkg_ktype = {
+static const struct kobj_type pkg_ktype = {
     .sysfs_ops = &pkg_sysfs_ops,
     .release = release,
     .default_groups = pkg_stats_groups};
-const struct kobj_type cpu_ktype = {
+static const struct kobj_type cpu_ktype = {
     .sysfs_ops = &cpu_sysfs_ops,
     .release = release,
     .default_groups = cpu_stats_groups};
+
+extern unsigned cpus_present;
+
+void publish_results_to_sysfs(void)
+{
+	int err = kobject_init_and_add(&(pkg_stats.kobject), &pkg_ktype, NULL, "mwait_measurements");
+	for (unsigned i = 0; i < cpus_present; ++i)
+	{
+		err |= kobject_init_and_add(&(cpu_stats[i].kobject), &cpu_ktype, &(pkg_stats.kobject), "cpu%u", i);
+	}
+	if (err)
+		printk(KERN_ERR "ERROR: Could not properly initialize CPU stat structure in the sysfs.\n");
+
+	printk(KERN_INFO "MWAIT: Measurements done.\n");
+}
+
+void cleanup_sysfs(void)
+{
+	for (unsigned i = 0; i < cpus_present; ++i)
+	{
+		kobject_del(&(cpu_stats[i].kobject));
+	}
+	kobject_del(&(pkg_stats.kobject));
+}

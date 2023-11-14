@@ -1,4 +1,4 @@
-#include "measure-generic.h"
+#include "measure.h"
 #include "consts.h"
 
 #include <linux/kernel.h>
@@ -20,9 +20,7 @@ module_param(cpu_selection, charp, 0);
 MODULE_PARM_DESC(cpu_selection, "How the cpus doing mwait should be selected. Supported are 'core' and 'cpu_nr'.");
 
 DEFINE_PER_CPU(u64, wakeups);
-EXPORT_PER_CPU_SYMBOL(wakeups);
 DEFINE_PER_CPU(int, trigger);
-EXPORT_PER_CPU_SYMBOL(trigger);
 static atomic_t sync_var;
 bool redo_measurement;
 static bool end_of_measurement;

@@ -24,6 +24,7 @@ MODULE_PARM_DESC(target_subcstate, "The sub C-State that gets passed to mwait as
 
 DECLARE_PER_CPU(int, trigger);
 DECLARE_PER_CPU(int, wakeups);
+
 static int dummy;
 static u32 calculated_mwait_hint;
 static u32 rapl_unit;
@@ -51,12 +52,12 @@ static u64 start_pkg_c6, final_pkg_c6;
 static u64 start_pkg_c7, final_pkg_c7;
 static u64 hpet_comparator, hpet_counter, wakeup_time;
 
-static bool is_cpu_model(u32 family, u32 model)
+static inline bool is_cpu_model(u32 family, u32 model)
 {
 	return cpu_family == family && cpu_model == model;
 }
 
-int measurement_callback(unsigned int val, struct pt_regs *regs)
+static int measurement_callback(unsigned int val, struct pt_regs *regs)
 {
 	// this measurement is taken here to get the value as early as possible
 	u64 hpet_counter_local = get_hpet_counter();
@@ -91,14 +92,25 @@ void wakeup_other_cpus(void)
 	apic->send_IPI_allbutself(NMI_VECTOR);
 }
 
-static inline void wait_for_rapl_update(void)
+#define read_msr(msr, p)                           \
+	({                                         \
+		if (unlikely(rdmsrl_safe(msr, p))) \
+			rdmsr_error(#msr, msr);    \
+	})
+
+static void rdmsr_error(char *reg, unsigned reg_nr)
+{
+	printk(KERN_ERR "WARNING: Failed to read register %s (%u).\n", reg, reg_nr);
+}
+
+void wait_for_rapl_update(void)
 {
 	u64 original_value;
-	rdmsrl_safe(MSR_PKG_ENERGY_STATUS, &original_value);
+	read_msr(MSR_PKG_ENERGY_STATUS, &original_value);
 	original_value &= TOTAL_ENERGY_CONSUMED_MASK;
 	do
 	{
-		rdmsrl_safe(MSR_PKG_ENERGY_STATUS, &start_rapl);
+		read_msr(MSR_PKG_ENERGY_STATUS, &start_rapl);
 		start_rapl &= TOTAL_ENERGY_CONSUMED_MASK;
 	} while (original_value == start_rapl);
 }
@@ -108,18 +120,18 @@ void set_global_start_values(void)
 	wait_for_rapl_update();
 	start_time = local_clock();
 	start_tsc = rdtsc();
-	rdmsrl_safe(MSR_PKG_C2_RESIDENCY, &start_pkg_c2);
-	rdmsrl_safe(MSR_PKG_C3_RESIDENCY, &start_pkg_c3);
-	rdmsrl_safe(MSR_PKG_C6_RESIDENCY, &start_pkg_c6);
-	rdmsrl_safe(MSR_PKG_C7_RESIDENCY, &start_pkg_c7);
+	read_msr(MSR_PKG_C2_RESIDENCY, &start_pkg_c2);
+	read_msr(MSR_PKG_C3_RESIDENCY, &start_pkg_c3);
+	read_msr(MSR_PKG_C6_RESIDENCY, &start_pkg_c6);
+	read_msr(MSR_PKG_C7_RESIDENCY, &start_pkg_c7);
 }
 
 void set_cpu_start_values(int this_cpu)
 {
-	rdmsrl_safe(IA32_FIXED_CTR2, &per_cpu(start_unhalted, this_cpu));
-	rdmsrl_safe(MSR_CORE_C3_RESIDENCY, &per_cpu(start_c3, this_cpu));
-	rdmsrl_safe(MSR_CORE_C6_RESIDENCY, &per_cpu(start_c6, this_cpu));
-	rdmsrl_safe(MSR_CORE_C7_RESIDENCY, &per_cpu(start_c7, this_cpu));
+	read_msr(IA32_FIXED_CTR2, &per_cpu(start_unhalted, this_cpu));
+	read_msr(MSR_CORE_C3_RESIDENCY, &per_cpu(start_c3, this_cpu));
+	read_msr(MSR_CORE_C6_RESIDENCY, &per_cpu(start_c6, this_cpu));
+	read_msr(MSR_CORE_C7_RESIDENCY, &per_cpu(start_c7, this_cpu));
 }
 
 void setup_wakeup(void)
@@ -129,21 +141,21 @@ void setup_wakeup(void)
 
 void set_global_final_values(void)
 {
-	rdmsrl_safe(MSR_PKG_ENERGY_STATUS, &final_rapl);
+	read_msr(MSR_PKG_ENERGY_STATUS, &final_rapl);
 	final_time = local_clock();
 	final_tsc = rdtsc();
-	rdmsrl_safe(MSR_PKG_C2_RESIDENCY, &final_pkg_c2);
-	rdmsrl_safe(MSR_PKG_C3_RESIDENCY, &final_pkg_c3);
-	rdmsrl_safe(MSR_PKG_C6_RESIDENCY, &final_pkg_c6);
-	rdmsrl_safe(MSR_PKG_C7_RESIDENCY, &final_pkg_c7);
+	read_msr(MSR_PKG_C2_RESIDENCY, &final_pkg_c2);
+	read_msr(MSR_PKG_C3_RESIDENCY, &final_pkg_c3);
+	read_msr(MSR_PKG_C6_RESIDENCY, &final_pkg_c6);
+	read_msr(MSR_PKG_C7_RESIDENCY, &final_pkg_c7);
 }
 
 void set_cpu_final_values(int this_cpu)
 {
-	rdmsrl_safe(IA32_FIXED_CTR2, &per_cpu(final_unhalted, this_cpu));
-	rdmsrl_safe(MSR_CORE_C3_RESIDENCY, &per_cpu(final_c3, this_cpu));
-	rdmsrl_safe(MSR_CORE_C6_RESIDENCY, &per_cpu(final_c6, this_cpu));
-	rdmsrl_safe(MSR_CORE_C7_RESIDENCY, &per_cpu(final_c7, this_cpu));
+	read_msr(IA32_FIXED_CTR2, &per_cpu(final_unhalted, this_cpu));
+	read_msr(MSR_CORE_C3_RESIDENCY, &per_cpu(final_c3, this_cpu));
+	read_msr(MSR_CORE_C6_RESIDENCY, &per_cpu(final_c6, this_cpu));
+	read_msr(MSR_CORE_C7_RESIDENCY, &per_cpu(final_c7, this_cpu));
 }
 
 void do_system_specific_sleep(int this_cpu)
@@ -205,20 +217,20 @@ void cleanup_after_each_measurement(void)
 inline void commit_results(unsigned number)
 {
 	pkg_stats.energy_consumption[number] = final_rapl * rapl_unit;
-	pkg_stats.total_tsc[number] = final_tsc;
 	pkg_stats.wakeup_time[number] = wakeup_time;
-	pkg_stats.c2[number] = final_pkg_c2;
-	pkg_stats.c3[number] = final_pkg_c3;
-	pkg_stats.c6[number] = final_pkg_c6;
-	pkg_stats.c7[number] = final_pkg_c7;
+	pkg_stats.attributes.total_tsc[number] = final_tsc;
+	pkg_stats.attributes.c2[number] = final_pkg_c2;
+	pkg_stats.attributes.c3[number] = final_pkg_c3;
+	pkg_stats.attributes.c6[number] = final_pkg_c6;
+	pkg_stats.attributes.c7[number] = final_pkg_c7;
 
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{
 		cpu_stats[i].wakeups[number] = per_cpu(wakeups, i);
-		cpu_stats[i].unhalted[number] = per_cpu(final_unhalted, i);
-		cpu_stats[i].c3[number] = per_cpu(final_c3, i);
-		cpu_stats[i].c6[number] = per_cpu(final_c6, i);
-		cpu_stats[i].c7[number] = per_cpu(final_c7, i);
+		cpu_stats[i].attributes.unhalted[number] = per_cpu(final_unhalted, i);
+		cpu_stats[i].attributes.c3[number] = per_cpu(final_c3, i);
+		cpu_stats[i].attributes.c6[number] = per_cpu(final_c6, i);
+		cpu_stats[i].attributes.c7[number] = per_cpu(final_c7, i);
 	}
 }
 
@@ -314,7 +326,7 @@ void preliminary_checks(void)
 static inline u32 get_rapl_unit(void)
 {
 	u64 val;
-	rdmsrl_safe(MSR_RAPL_POWER_UNIT, &val);
+	read_msr(MSR_RAPL_POWER_UNIT, &val);
 	val = (val >> 8) & 0b11111;
 	return 10000000 / (1 << val);
 }
@@ -363,26 +375,4 @@ void cleanup_after_measurements_done(void)
 {
 	restore_ioapic_after_measurement();
 	unregister_nmi_handler(NMI_UNKNOWN, "measurement_callback");
-}
-
-void publish_results_to_sysfs(void)
-{
-	int err = kobject_init_and_add(&(pkg_stats.kobject), &pkg_ktype, NULL, "mwait_measurements");
-	for (unsigned i = 0; i < cpus_present; ++i)
-	{
-		err |= kobject_init_and_add(&(cpu_stats[i].kobject), &cpu_ktype, &(pkg_stats.kobject), "cpu%u", i);
-	}
-	if (err)
-		printk(KERN_ERR "ERROR: Could not properly initialize CPU stat structure in the sysfs.\n");
-
-	printk(KERN_INFO "MWAIT: Measurements done.\n");
-}
-
-void cleanup_sysfs(void)
-{
-	for (unsigned i = 0; i < cpus_present; ++i)
-	{
-		kobject_del(&(cpu_stats[i].kobject));
-	}
-	kobject_del(&(pkg_stats.kobject));
 }
