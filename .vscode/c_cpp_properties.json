@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Linux",
+            "name": "Linux-x86",
             "includePath": [
                 "${workspaceFolder}/linuxMWAIT/include",
                 "${workspaceFolder}/linuxMWAIT/include/generated",
