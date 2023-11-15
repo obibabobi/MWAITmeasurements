@@ -5,6 +5,10 @@
 #error Do not include directly, instead include architecture specific header!
 #endif
 
+#include <linux/kobject.h>
+#include <linux/types.h>
+#include <linux/sysfs.h>
+
 extern struct pkg_stat
 {
 	struct kobject kobject;
@@ -20,31 +24,10 @@ extern struct cpu_stat
 	struct cpu_attributes attributes;
 } cpu_stats[MAX_CPUS];
 
-#include "sysfs-helper.h"
+ssize_t format_array_into_buffer(u64 *array, char *buf);
 
-#include <linux/sysfs.h>
-
-ssize_t output_pkg_attributes(struct pkg_stat *stat, struct attribute *attr, char *buf);
-
-static inline ssize_t show_pkg_stats(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	struct pkg_stat *stat = container_of(kobj, struct pkg_stat, kobject);
-	if (strcmp(attr->name, "energy_consumption") == 0)
-		return format_array_into_buffer(stat->energy_consumption, buf);
-	if (strcmp(attr->name, "wakeup_time") == 0)
-		return format_array_into_buffer(stat->wakeup_time, buf);
-	return output_pkg_attributes(stat, attr, buf);
-}
-
-ssize_t output_cpu_attributes(struct cpu_stat *stat, struct attribute *attr, char *buf);
-
-static inline ssize_t show_cpu_stats(struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	struct cpu_stat *stat = container_of(kobj, struct cpu_stat, kobject);
-	if (strcmp(attr->name, "wakeups") == 0)
-		return format_array_into_buffer(stat->wakeups, buf);
-	return output_cpu_attributes(stat, attr, buf);
-}
+ssize_t show_pkg_stats(struct kobject *kobj, struct attribute *attr, char *buf);
+ssize_t show_cpu_stats(struct kobject *kobj, struct attribute *attr, char *buf);
 
 #define output_to_sysfs(attribute_name)                                                        \
 	({                                                                                     \

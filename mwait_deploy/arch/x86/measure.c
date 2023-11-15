@@ -50,7 +50,7 @@ static u64 start_pkg_c2, final_pkg_c2;
 static u64 start_pkg_c3, final_pkg_c3;
 static u64 start_pkg_c6, final_pkg_c6;
 static u64 start_pkg_c7, final_pkg_c7;
-static u64 hpet_comparator, hpet_counter, wakeup_time;
+static u64 hpet_comparator, hpet_counter;
 
 static inline bool is_cpu_model(u32 family, u32 model)
 {
@@ -176,7 +176,7 @@ void evaluate_global(void)
 		printk(KERN_ERR "Result would have been %llu.\n", final_rapl - start_rapl);
 		redo_measurement = 1;
 	}
-	final_rapl -= start_rapl;
+	energy_consumption = (final_rapl - start_rapl) * rapl_unit;
 	final_time -= start_time;
 	if (final_time < measurement_duration * 1000000)
 	{
@@ -214,10 +214,8 @@ void cleanup_after_each_measurement(void)
 	restore_hpet_after_measurement();
 }
 
-inline void commit_results(unsigned number)
+inline void commit_system_specific_results(unsigned number)
 {
-	pkg_stats.energy_consumption[number] = final_rapl * rapl_unit;
-	pkg_stats.wakeup_time[number] = wakeup_time;
 	pkg_stats.attributes.total_tsc[number] = final_tsc;
 	pkg_stats.attributes.c2[number] = final_pkg_c2;
 	pkg_stats.attributes.c3[number] = final_pkg_c3;
@@ -226,7 +224,6 @@ inline void commit_results(unsigned number)
 
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{
-		cpu_stats[i].wakeups[number] = per_cpu(wakeups, i);
 		cpu_stats[i].attributes.unhalted[number] = per_cpu(final_unhalted, i);
 		cpu_stats[i].attributes.c3[number] = per_cpu(final_c3, i);
 		cpu_stats[i].attributes.c6[number] = per_cpu(final_c6, i);

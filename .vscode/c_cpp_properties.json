@@ -10,7 +10,9 @@
                 "${workspaceFolder}/linuxMWAIT/arch/x86/include",
                 "${workspaceFolder}/linuxMWAIT/arch/x86/include/generated",
                 "${workspaceFolder}/linuxMWAIT/arch/x86/include/uapi",
-                "${workspaceFolder}/linuxMWAIT/arch/x86/include/generated/uapi"
+                "${workspaceFolder}/linuxMWAIT/arch/x86/include/generated/uapi",
+                "${workspaceFolder}/mwait_deploy/include",
+                "${workspaceFolder}/mwait_deploy/arch/x86/include"
             ],
             "compilerArgs": [
                 "-nostdinc",

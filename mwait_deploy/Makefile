@@ -4,9 +4,9 @@ ifeq ("$(ARCH)", "x86_64")
 endif
 
 obj-m += mwait.o 
-mwait-y := measure.o sysfs-helper.o arch/$(ARCH)/measure.o arch/$(ARCH)/sysfs.o
+mwait-y := measure.o sysfs.o arch/$(ARCH)/measure.o arch/$(ARCH)/sysfs.o
+ccflags-y=-I$(PWD)/include -I$(PWD)/arch/$(ARCH)/include
 
-PWD := $(CURDIR) 
 ifdef PROJECT_BUILD_DIR
 	BUILD_DIR := ../linuxMWAIT
 else
@@ -14,7 +14,7 @@ else
 endif
 
 all: 
-	make -C $(BUILD_DIR) M=$(PWD) modules 
+	$(MAKE) -C $(BUILD_DIR) M=$(CURDIR) modules
 
 clean: 
-	make -C $(BUILD_DIR) M=$(PWD) clean
+	$(MAKE) -C $(BUILD_DIR) M=$(CURDIR) clean

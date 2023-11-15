@@ -1,5 +1,5 @@
 #include "measure.h"
-#include "consts.h"
+#include "sysfs.h"
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -19,12 +19,16 @@ static char *cpu_selection = "core";
 module_param(cpu_selection, charp, 0);
 MODULE_PARM_DESC(cpu_selection, "How the cpus doing mwait should be selected. Supported are 'core' and 'cpu_nr'.");
 
+u64 energy_consumption;
+u64 wakeup_time;
 DEFINE_PER_CPU(u64, wakeups);
-DEFINE_PER_CPU(int, trigger);
-static atomic_t sync_var;
-bool redo_measurement;
-static bool end_of_measurement;
+
 unsigned cpus_present;
+bool redo_measurement;
+DEFINE_PER_CPU(int, trigger);
+
+static atomic_t sync_var;
+static bool end_of_measurement;
 
 void leader_callback(void)
 {
@@ -112,6 +116,19 @@ static void per_cpu_func(void *info)
 
 	local_irq_enable();
 	put_cpu();
+}
+
+static void commit_results(unsigned number)
+{
+	pkg_stats.energy_consumption[number] = energy_consumption;
+	pkg_stats.wakeup_time[number] = wakeup_time;
+
+	for (unsigned i = 0; i < cpus_present; ++i)
+	{
+		cpu_stats[i].wakeups[number] = per_cpu(wakeups, i);
+	}
+
+	commit_system_specific_results(number);
 }
 
 static void measure(unsigned number)

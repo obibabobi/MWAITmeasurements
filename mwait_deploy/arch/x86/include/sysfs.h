@@ -1,9 +1,9 @@
 #ifndef SYSFS_H
 #define SYSFS_H
 
-#include "../../consts.h"
+#include "consts.h"
 
-#include <linux/kobject.h>
+#include <linux/types.h>
 
 struct pkg_attributes
 {
@@ -22,6 +22,6 @@ struct cpu_attributes
 	u64 c7[MAX_NUMBER_OF_MEASUREMENTS];
 };
 
-#include "../../sysfs-generic.h"
+#include "generic/sysfs.h"
 
 #endif
