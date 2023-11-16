@@ -3,6 +3,11 @@
 #include <linux/kernel.h>
 #include <asm/page.h>
 
+struct attribute pkg_energy_consumption_attribute = {.name = "energy_consumption", .mode = 0444};
+struct attribute pkg_wakeup_time_attribute = {.name = "wakeup_time", .mode = 0444};
+
+struct attribute cpu_wakeups_attribute = {.name = "wakeups", .mode = 0444};
+
 extern int measurement_count;
 
 ssize_t format_array_into_buffer(u64 *array, char *buf)
@@ -17,6 +22,12 @@ ssize_t format_array_into_buffer(u64 *array, char *buf)
 	}
 	return bytes_written;
 }
+
+ssize_t ignore_write(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
+{
+	return count;
+}
+void release(struct kobject *kobj) {}
 
 ssize_t output_pkg_attributes(struct pkg_stat *stat, struct attribute *attr, char *buf);
 ssize_t output_cpu_attributes(struct cpu_stat *stat, struct attribute *attr, char *buf);

@@ -24,10 +24,17 @@ extern struct cpu_stat
 	struct cpu_attributes attributes;
 } cpu_stats[MAX_CPUS];
 
-ssize_t format_array_into_buffer(u64 *array, char *buf);
+extern struct attribute pkg_energy_consumption_attribute;
+extern struct attribute pkg_wakeup_time_attribute;
+
+extern struct attribute cpu_wakeups_attribute;
 
 ssize_t show_pkg_stats(struct kobject *kobj, struct attribute *attr, char *buf);
 ssize_t show_cpu_stats(struct kobject *kobj, struct attribute *attr, char *buf);
+ssize_t ignore_write(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count);
+void release(struct kobject *kobj);
+
+ssize_t format_array_into_buffer(u64 *array, char *buf);
 
 #define output_to_sysfs(attribute_name)                                                        \
 	({                                                                                     \

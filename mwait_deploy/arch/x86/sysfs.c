@@ -3,17 +3,15 @@
 struct pkg_stat pkg_stats;
 struct cpu_stat cpu_stats[MAX_CPUS];
 
-create_attribute(pkg, energy_consumption);
 create_attribute(pkg, total_tsc);
-create_attribute(pkg, wakeup_time);
 create_attribute(pkg, c2);
 create_attribute(pkg, c3);
 create_attribute(pkg, c6);
 create_attribute(pkg, c7);
 static struct attribute *pkg_stats_attributes[] = {
     &pkg_energy_consumption_attribute,
-    &pkg_total_tsc_attribute,
     &pkg_wakeup_time_attribute,
+    &pkg_total_tsc_attribute,
     &pkg_c2_attribute,
     &pkg_c3_attribute,
     &pkg_c6_attribute,
@@ -25,7 +23,6 @@ static const struct attribute_group *pkg_stats_groups[] = {
     &pkg_stats_group,
     NULL};
 
-create_attribute(cpu, wakeups);
 create_attribute(cpu, unhalted);
 create_attribute(cpu, c3);
 create_attribute(cpu, c6);
@@ -61,12 +58,6 @@ ssize_t output_cpu_attributes(struct cpu_stat *stat, struct attribute *attr, cha
 	output_to_sysfs(c7);
 	return 0;
 }
-
-ssize_t ignore_write(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
-{
-	return count;
-}
-void release(struct kobject *kobj) {}
 
 static const struct sysfs_ops pkg_sysfs_ops = {
     .show = show_pkg_stats,
