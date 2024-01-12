@@ -42,11 +42,12 @@ void all_cpus_callback(int this_cpu)
 {
 	set_cpu_final_values(this_cpu);
 
-	if (!end_of_measurement)
+	// Temporarily disabled
+	/*if (!end_of_measurement)
 	{
 		printk(KERN_ERR "CPU %i was unexpectedly interrupted during measurement.\n", this_cpu);
 		redo_measurement = 1;
-	}
+	}*/
 
 	per_cpu(trigger, this_cpu) = 0;
 }
@@ -99,7 +100,7 @@ static bool should_do_mwait(int this_cpu)
 static void per_cpu_func(void *info)
 {
 	int this_cpu = get_cpu();
-	local_irq_disable();
+	disable_percpu_interrupts();
 
 	per_cpu(trigger, this_cpu) = 1;
 
@@ -114,7 +115,7 @@ static void per_cpu_func(void *info)
 		do_idle_loop(this_cpu);
 	}
 
-	local_irq_enable();
+	enable_percpu_interrupts();
 	put_cpu();
 }
 

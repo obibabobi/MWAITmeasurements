@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "name": "Linux-x86",
+            "name": "linux-x64",
             "includePath": [
                 "${workspaceFolder}/linuxMWAIT/include",
                 "${workspaceFolder}/linuxMWAIT/include/generated",
@@ -26,6 +26,33 @@
             "compilerPath": "/usr/bin/gcc",
             "cStandard": "gnu11",
             "intelliSenseMode": "linux-gcc-x64"
+        },
+        {
+            "name": "linux-arm64",
+            "includePath": [
+                "${workspaceFolder}/linuxMWAIT/include",
+                "${workspaceFolder}/linuxMWAIT/include/generated",
+                "${workspaceFolder}/linuxMWAIT/include/uapi",
+                "${workspaceFolder}/linuxMWAIT/include/generated/uapi",
+                "${workspaceFolder}/linuxMWAIT/arch/arm64/include",
+                "${workspaceFolder}/linuxMWAIT/arch/arm64/include/uapi",
+                "${workspaceFolder}/linuxMWAIT/arch/arm64/include/generated",
+                "${workspaceFolder}/linuxMWAIT/arch/arm64/include/generated/uapi",
+                "${workspaceFolder}/mwait_deploy/include",
+                "${workspaceFolder}/mwait_deploy/arch/arm/include"
+            ],
+            "compilerArgs": [
+                "-nostdinc",
+                "-include", "${workspaceFolder}/linuxMWAIT/include/linux/kconfig.h",
+                "-include", "${workspaceFolder}/linuxMWAIT/include/linux/compiler_types.h"
+            ],
+            "defines": [
+                "__KERNEL__",
+                "MODULE"
+            ],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "intelliSenseMode": "linux-gcc-arm"
         }
     ],
     "version": 4

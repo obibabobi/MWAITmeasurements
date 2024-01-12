@@ -2,6 +2,9 @@ ARCH := $(shell uname -m)
 ifeq ("$(ARCH)", "x86_64")
 	ARCH := x86
 endif
+ifeq ("$(ARCH)", "aarch64")
+	ARCH := arm
+endif
 
 obj-m += mwait.o 
 mwait-y := measure.o sysfs.o arch/$(ARCH)/measure.o arch/$(ARCH)/sysfs.o

@@ -30,5 +30,7 @@ void evaluate_global(void);
 void evaluate_cpu(int this_cpu);
 void publish_results_to_sysfs(void);
 void cleanup_sysfs(void);
+void disable_percpu_interrupts(void);
+void enable_percpu_interrupts(void);
 
 #endif
