@@ -63,7 +63,7 @@ static inline void sync(int this_cpu)
 		set_global_start_values();
 		atomic_inc(&sync_var);
 		set_cpu_start_values(this_cpu);
-		setup_wakeup();
+		setup_wakeup(this_cpu);
 		atomic_inc(&sync_var);
 	}
 	else
@@ -72,6 +72,10 @@ static inline void sync(int this_cpu)
 		{
 		}
 		set_cpu_start_values(this_cpu);
+		
+		// temporary
+		setup_wakeup(this_cpu);
+		
 		while (atomic_read(&sync_var) < cpus_present + 2)
 		{
 		}
@@ -105,6 +109,8 @@ static void per_cpu_func(void *info)
 	per_cpu(trigger, this_cpu) = 1;
 
 	sync(this_cpu);
+
+	printk("Starting Measurement!\n");
 
 	if (should_do_mwait(this_cpu))
 	{
