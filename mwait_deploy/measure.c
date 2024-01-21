@@ -20,7 +20,7 @@ module_param(cpu_selection, charp, 0);
 MODULE_PARM_DESC(cpu_selection, "How the cpus doing mwait should be selected. Supported are 'core' and 'cpu_nr'.");
 
 u64 energy_consumption;
-u64 wakeup_time;
+DEFINE_PER_CPU(u64, wakeup_time);
 DEFINE_PER_CPU(u64, wakeups);
 
 unsigned cpus_present;
@@ -32,22 +32,12 @@ static bool end_of_measurement;
 
 void leader_callback(void)
 {
-	end_of_measurement = 1;
-	wakeup_other_cpus();
-
 	set_global_final_values();
 }
 
 void all_cpus_callback(int this_cpu)
 {
 	set_cpu_final_values(this_cpu);
-
-	// Temporarily disabled
-	/*if (!end_of_measurement)
-	{
-		printk(KERN_ERR "CPU %i was unexpectedly interrupted during measurement.\n", this_cpu);
-		redo_measurement = 1;
-	}*/
 
 	per_cpu(trigger, this_cpu) = 0;
 }
@@ -72,10 +62,10 @@ static inline void sync(int this_cpu)
 		{
 		}
 		set_cpu_start_values(this_cpu);
-		
+
 		// temporary
 		setup_wakeup(this_cpu);
-		
+
 		while (atomic_read(&sync_var) < cpus_present + 2)
 		{
 		}
@@ -104,13 +94,14 @@ static bool should_do_mwait(int this_cpu)
 static void per_cpu_func(void *info)
 {
 	int this_cpu = get_cpu();
+	local_irq_disable();
 	disable_percpu_interrupts();
 
 	per_cpu(trigger, this_cpu) = 1;
 
-	sync(this_cpu);
+	printk("%i: Measurement started.\n", this_cpu);
 
-	printk("Starting Measurement!\n");
+	sync(this_cpu);
 
 	if (should_do_mwait(this_cpu))
 	{
@@ -122,16 +113,17 @@ static void per_cpu_func(void *info)
 	}
 
 	enable_percpu_interrupts();
+	local_irq_enable();
 	put_cpu();
 }
 
 static void commit_results(unsigned number)
 {
 	pkg_stats.energy_consumption[number] = energy_consumption;
-	pkg_stats.wakeup_time[number] = wakeup_time;
 
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{
+		cpu_stats[i].wakeup_time[number] = per_cpu(wakeup_time, i);
 		cpu_stats[i].wakeups[number] = per_cpu(wakeups, i);
 	}
 

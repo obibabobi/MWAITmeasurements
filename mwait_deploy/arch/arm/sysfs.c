@@ -5,7 +5,6 @@ struct cpu_stat cpu_stats[MAX_CPUS];
 
 static struct attribute *pkg_stats_attributes[] = {
     &pkg_energy_consumption_attribute,
-    &pkg_wakeup_time_attribute,
     NULL};
 static struct attribute_group pkg_stats_group = {
     .attrs = pkg_stats_attributes};
@@ -14,6 +13,7 @@ static const struct attribute_group *pkg_stats_groups[] = {
     NULL};
 
 static struct attribute *cpu_stats_attributes[] = {
+    &cpu_wakeup_time_attribute,
     &cpu_wakeups_attribute,
     NULL};
 static struct attribute_group cpu_stats_group = {

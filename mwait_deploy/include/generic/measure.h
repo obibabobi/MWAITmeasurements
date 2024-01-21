@@ -2,6 +2,7 @@
 #define MEASURE_GENERIC_H
 
 #include <linux/types.h>
+#include <linux/percpu.h>
 
 extern int measurement_duration;
 
@@ -9,7 +10,7 @@ extern bool redo_measurement;
 extern unsigned cpus_present;
 
 extern u64 energy_consumption;
-extern u64 wakeup_time;
+DECLARE_PER_CPU(u64, wakeup_time);
 
 int prepare_measurement(void);
 void preliminary_checks(void);
