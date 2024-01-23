@@ -28,10 +28,11 @@ bool redo_measurement;
 DEFINE_PER_CPU(int, trigger);
 
 static atomic_t sync_var;
-static bool end_of_measurement;
 
 void leader_callback(void)
 {
+	wakeup_other_cpus();
+
 	set_global_final_values();
 }
 
@@ -53,7 +54,7 @@ static inline void sync(int this_cpu)
 		set_global_start_values();
 		atomic_inc(&sync_var);
 		set_cpu_start_values(this_cpu);
-		setup_wakeup(this_cpu);
+		setup_leader_wakeup();
 		atomic_inc(&sync_var);
 	}
 	else
@@ -63,7 +64,6 @@ static inline void sync(int this_cpu)
 		}
 		set_cpu_start_values(this_cpu);
 
-		// temporary
 		setup_wakeup(this_cpu);
 
 		while (atomic_read(&sync_var) < cpus_present + 2)
@@ -135,7 +135,6 @@ static void measure(unsigned number)
 	do
 	{
 		redo_measurement = 0;
-		end_of_measurement = 0;
 		prepare_before_each_measurement();
 		for (unsigned i = 0; i < cpus_present; ++i)
 			per_cpu(wakeups, i) = 0;

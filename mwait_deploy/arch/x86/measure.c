@@ -34,6 +34,12 @@ static u32 hpet_period;
 static u32 cpu_model;
 static u32 cpu_family;
 static int first;
+static bool end_of_measurement;
+
+unsigned vendor;
+
+static u32 msr_rapl_power_unit;
+static u32 msr_pkg_energy_status;
 
 DEFINE_PER_CPU(u64, start_unhalted);
 DEFINE_PER_CPU(u64, final_unhalted);
@@ -75,10 +81,18 @@ static int measurement_callback(unsigned int val, struct pt_regs *regs)
 		// only commit the taken time to the global variable if this point is reached
 		hpet_counter = hpet_counter_local;
 
+		end_of_measurement = 1;
+
 		leader_callback();
 	}
 
 	all_cpus_callback(this_cpu);
+
+	if (!end_of_measurement)
+	{
+		printk(KERN_ERR "CPU %i was unexpectedly interrupted during measurement.\n", this_cpu);
+		redo_measurement = 1;
+	}
 
 	// Without some delay here, CPUs tend to get stuck on rare occasions
 	// I don't know yet why exactly this happens, so this udelay should be seen as a (hopefully temporary) workaround
@@ -106,11 +120,11 @@ static void rdmsr_error(char *reg, unsigned reg_nr)
 void wait_for_rapl_update(void)
 {
 	u64 original_value;
-	read_msr(MSR_PKG_ENERGY_STATUS, &original_value);
+	read_msr(msr_pkg_energy_status, &original_value);
 	original_value &= TOTAL_ENERGY_CONSUMED_MASK;
 	do
 	{
-		read_msr(MSR_PKG_ENERGY_STATUS, &start_rapl);
+		read_msr(msr_pkg_energy_status, &start_rapl);
 		start_rapl &= TOTAL_ENERGY_CONSUMED_MASK;
 	} while (original_value == start_rapl);
 }
@@ -120,42 +134,60 @@ void set_global_start_values(void)
 	wait_for_rapl_update();
 	start_time = local_clock();
 	start_tsc = rdtsc();
-	read_msr(MSR_PKG_C2_RESIDENCY, &start_pkg_c2);
-	read_msr(MSR_PKG_C3_RESIDENCY, &start_pkg_c3);
-	read_msr(MSR_PKG_C6_RESIDENCY, &start_pkg_c6);
-	read_msr(MSR_PKG_C7_RESIDENCY, &start_pkg_c7);
+
+	if (vendor == X86_VENDOR_INTEL)
+	{
+		read_msr(MSR_PKG_C2_RESIDENCY, &start_pkg_c2);
+		read_msr(MSR_PKG_C3_RESIDENCY, &start_pkg_c3);
+		read_msr(MSR_PKG_C6_RESIDENCY, &start_pkg_c6);
+		read_msr(MSR_PKG_C7_RESIDENCY, &start_pkg_c7);
+	}
 }
 
 void set_cpu_start_values(int this_cpu)
 {
-	read_msr(IA32_FIXED_CTR2, &per_cpu(start_unhalted, this_cpu));
-	read_msr(MSR_CORE_C3_RESIDENCY, &per_cpu(start_c3, this_cpu));
-	read_msr(MSR_CORE_C6_RESIDENCY, &per_cpu(start_c6, this_cpu));
-	read_msr(MSR_CORE_C7_RESIDENCY, &per_cpu(start_c7, this_cpu));
+	if (vendor == X86_VENDOR_INTEL)
+	{
+		read_msr(IA32_FIXED_CTR2, &per_cpu(start_unhalted, this_cpu));
+		read_msr(MSR_CORE_C3_RESIDENCY, &per_cpu(start_c3, this_cpu));
+		read_msr(MSR_CORE_C6_RESIDENCY, &per_cpu(start_c6, this_cpu));
+		read_msr(MSR_CORE_C7_RESIDENCY, &per_cpu(start_c7, this_cpu));
+	}
 }
 
-void setup_wakeup(void)
+void setup_leader_wakeup(void)
 {
 	hpet_comparator = setup_hpet_for_measurement(measurement_duration, hpet_pin);
 }
 
+void setup_wakeup(int this_cpu)
+{
+}
+
 void set_global_final_values(void)
 {
-	read_msr(MSR_PKG_ENERGY_STATUS, &final_rapl);
+	read_msr(msr_pkg_energy_status, &final_rapl);
 	final_time = local_clock();
 	final_tsc = rdtsc();
-	read_msr(MSR_PKG_C2_RESIDENCY, &final_pkg_c2);
-	read_msr(MSR_PKG_C3_RESIDENCY, &final_pkg_c3);
-	read_msr(MSR_PKG_C6_RESIDENCY, &final_pkg_c6);
-	read_msr(MSR_PKG_C7_RESIDENCY, &final_pkg_c7);
+
+	if (vendor == X86_VENDOR_INTEL)
+	{
+		read_msr(MSR_PKG_C2_RESIDENCY, &final_pkg_c2);
+		read_msr(MSR_PKG_C3_RESIDENCY, &final_pkg_c3);
+		read_msr(MSR_PKG_C6_RESIDENCY, &final_pkg_c6);
+		read_msr(MSR_PKG_C7_RESIDENCY, &final_pkg_c7);
+	}
 }
 
 void set_cpu_final_values(int this_cpu)
 {
-	read_msr(IA32_FIXED_CTR2, &per_cpu(final_unhalted, this_cpu));
-	read_msr(MSR_CORE_C3_RESIDENCY, &per_cpu(final_c3, this_cpu));
-	read_msr(MSR_CORE_C6_RESIDENCY, &per_cpu(final_c6, this_cpu));
-	read_msr(MSR_CORE_C7_RESIDENCY, &per_cpu(final_c7, this_cpu));
+	if (vendor == X86_VENDOR_INTEL)
+	{
+		read_msr(IA32_FIXED_CTR2, &per_cpu(final_unhalted, this_cpu));
+		read_msr(MSR_CORE_C3_RESIDENCY, &per_cpu(final_c3, this_cpu));
+		read_msr(MSR_CORE_C6_RESIDENCY, &per_cpu(final_c6, this_cpu));
+		read_msr(MSR_CORE_C7_RESIDENCY, &per_cpu(final_c7, this_cpu));
+	}
 }
 
 void do_system_specific_sleep(int this_cpu)
@@ -183,12 +215,15 @@ void evaluate_global(void)
 		printk(KERN_ERR "Measurement lasted only %llu ns.\n", final_time);
 		redo_measurement = 1;
 	}
-	wakeup_time = ((hpet_counter - hpet_comparator) * hpet_period) / 1000000;
 	final_tsc -= start_tsc;
-	final_pkg_c2 -= start_pkg_c2;
-	final_pkg_c3 -= start_pkg_c3;
-	final_pkg_c6 -= start_pkg_c6;
-	final_pkg_c7 -= start_pkg_c7;
+
+	if (vendor == X86_VENDOR_INTEL)
+	{
+		final_pkg_c2 -= start_pkg_c2;
+		final_pkg_c3 -= start_pkg_c3;
+		final_pkg_c6 -= start_pkg_c6;
+		final_pkg_c7 -= start_pkg_c7;
+	}
 
 	if (redo_measurement)
 	{
@@ -198,14 +233,27 @@ void evaluate_global(void)
 
 void evaluate_cpu(int this_cpu)
 {
-	per_cpu(final_unhalted, this_cpu) -= per_cpu(start_unhalted, this_cpu);
-	per_cpu(final_c3, this_cpu) -= per_cpu(start_c3, this_cpu);
-	per_cpu(final_c6, this_cpu) -= per_cpu(start_c6, this_cpu);
-	per_cpu(final_c7, this_cpu) -= per_cpu(start_c7, this_cpu);
+	if (!this_cpu)
+	{
+		per_cpu(wakeup_time, this_cpu) = ((hpet_counter - hpet_comparator) * hpet_period) / 1000000;
+	}
+	else
+	{
+		per_cpu(wakeup_time, this_cpu) = 0;
+	}
+
+	if (vendor == X86_VENDOR_INTEL)
+	{
+		per_cpu(final_unhalted, this_cpu) -= per_cpu(start_unhalted, this_cpu);
+		per_cpu(final_c3, this_cpu) -= per_cpu(start_c3, this_cpu);
+		per_cpu(final_c6, this_cpu) -= per_cpu(start_c6, this_cpu);
+		per_cpu(final_c7, this_cpu) -= per_cpu(start_c7, this_cpu);
+	}
 }
 
 void prepare_before_each_measurement(void)
 {
+	end_of_measurement = 0;
 	first = 0;
 }
 
@@ -217,38 +265,47 @@ void cleanup_after_each_measurement(void)
 inline void commit_system_specific_results(unsigned number)
 {
 	pkg_stats.attributes.total_tsc[number] = final_tsc;
-	pkg_stats.attributes.c2[number] = final_pkg_c2;
-	pkg_stats.attributes.c3[number] = final_pkg_c3;
-	pkg_stats.attributes.c6[number] = final_pkg_c6;
-	pkg_stats.attributes.c7[number] = final_pkg_c7;
+	if (vendor == X86_VENDOR_INTEL)
+	{
+		pkg_stats.attributes.c2[number] = final_pkg_c2;
+		pkg_stats.attributes.c3[number] = final_pkg_c3;
+		pkg_stats.attributes.c6[number] = final_pkg_c6;
+		pkg_stats.attributes.c7[number] = final_pkg_c7;
+	}
 
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{
-		cpu_stats[i].attributes.unhalted[number] = per_cpu(final_unhalted, i);
-		cpu_stats[i].attributes.c3[number] = per_cpu(final_c3, i);
-		cpu_stats[i].attributes.c6[number] = per_cpu(final_c6, i);
-		cpu_stats[i].attributes.c7[number] = per_cpu(final_c7, i);
+		if (vendor == X86_VENDOR_INTEL)
+		{
+			cpu_stats[i].attributes.unhalted[number] = per_cpu(final_unhalted, i);
+			cpu_stats[i].attributes.c3[number] = per_cpu(final_c3, i);
+			cpu_stats[i].attributes.c6[number] = per_cpu(final_c6, i);
+			cpu_stats[i].attributes.c7[number] = per_cpu(final_c7, i);
+		}
 	}
 }
 
 static void per_cpu_init(void *info)
 {
-	int err = 0;
-
-	u64 ia32_fixed_ctr_ctrl;
-	u64 ia32_perf_global_ctrl;
-
-	err = rdmsrl_safe(IA32_FIXED_CTR_CTRL, &ia32_fixed_ctr_ctrl);
-	ia32_fixed_ctr_ctrl |= 0b11 << 8;
-	err |= wrmsrl_safe(IA32_FIXED_CTR_CTRL, ia32_fixed_ctr_ctrl);
-
-	err |= rdmsrl_safe(IA32_PERF_GLOBAL_CTRL, &ia32_perf_global_ctrl);
-	ia32_perf_global_ctrl |= 1l << 34;
-	err |= wrmsrl_safe(IA32_PERF_GLOBAL_CTRL, ia32_perf_global_ctrl);
-
-	if (err)
+	if (vendor == X86_VENDOR_INTEL)
 	{
-		printk(KERN_ERR "WARNING: Could not enable 'unhalted' register.\n");
+		int err = 0;
+
+		u64 ia32_fixed_ctr_ctrl;
+		u64 ia32_perf_global_ctrl;
+
+		err = rdmsrl_safe(IA32_FIXED_CTR_CTRL, &ia32_fixed_ctr_ctrl);
+		ia32_fixed_ctr_ctrl |= 0b11 << 8;
+		err |= wrmsrl_safe(IA32_FIXED_CTR_CTRL, ia32_fixed_ctr_ctrl);
+
+		err |= rdmsrl_safe(IA32_PERF_GLOBAL_CTRL, &ia32_perf_global_ctrl);
+		ia32_perf_global_ctrl |= 1l << 34;
+		err |= wrmsrl_safe(IA32_PERF_GLOBAL_CTRL, ia32_perf_global_ctrl);
+
+		if (err)
+		{
+			printk(KERN_ERR "WARNING: Could not enable 'unhalted' register.\n");
+		}
 	}
 }
 
@@ -317,15 +374,43 @@ void preliminary_checks(void)
 	{
 		printk(KERN_ERR "WARNING: TSC not invariant, sleepstate statistics potentially meaningless.\n");
 	}
+
+	a = 0x0;
+	asm("cpuid;"
+	    : "=a"(a), "=b"(b), "=c"(c), "=d"(d)
+	    : "0"(a));
+	if (b == 0x756E6547 && d == 0x49656E69 && c == 0x6C65746E) /* GenuineIntel in ASCII */
+	{
+		vendor = X86_VENDOR_INTEL;
+		printk(KERN_ERR "INTEL CPU\n");
+	}
+	else if (b == 0x68747541 && d == 0x69746e65 && c == 0x444d4163) /* AuthenticAMD in ASCII */
+	{
+		vendor = X86_VENDOR_AMD;
+		printk(KERN_ERR "AMD CPU\n");
+	}
+	else
+	{
+		vendor = X86_VENDOR_UNKNOWN;
+		printk(KERN_ERR "VENDOR UNKNOWN\n");
+	}
 }
 
 // Get the unit of the PKG_ENERGY_STATUS MSR in 0.1 microJoule
 static inline u32 get_rapl_unit(void)
 {
 	u64 val;
-	read_msr(MSR_RAPL_POWER_UNIT, &val);
+	read_msr(msr_rapl_power_unit, &val);
 	val = (val >> 8) & 0b11111;
 	return 10000000 / (1 << val);
+}
+
+void disable_percpu_interrupts(void)
+{
+}
+
+void enable_percpu_interrupts(void)
+{
 }
 
 int prepare_measurement(void)
@@ -346,6 +431,17 @@ int prepare_measurement(void)
 		}
 	}
 	printk(KERN_INFO "Using MWAIT hint 0x%x.", calculated_mwait_hint);
+
+	if (vendor == X86_VENDOR_AMD)
+	{
+		msr_rapl_power_unit = MSR_AMD_RAPL_POWER_UNIT;
+		msr_pkg_energy_status = MSR_AMD_PKG_ENERGY_STATUS;
+	}
+	else
+	{
+		msr_rapl_power_unit = MSR_RAPL_POWER_UNIT;
+		msr_pkg_energy_status = MSR_PKG_ENERGY_STATUS;
+	}
 
 	rapl_unit = get_rapl_unit();
 	printk(KERN_INFO "rapl_unit in 0.1 microJoule: %u\n", rapl_unit);

@@ -3,6 +3,8 @@
 struct pkg_stat pkg_stats;
 struct cpu_stat cpu_stats[MAX_CPUS];
 
+extern unsigned vendor;
+
 create_attribute(pkg, total_tsc);
 create_attribute(pkg, c2);
 create_attribute(pkg, c3);
@@ -10,7 +12,6 @@ create_attribute(pkg, c6);
 create_attribute(pkg, c7);
 static struct attribute *pkg_stats_attributes[] = {
     &pkg_energy_consumption_attribute,
-    &pkg_wakeup_time_attribute,
     &pkg_total_tsc_attribute,
     &pkg_c2_attribute,
     &pkg_c3_attribute,
@@ -28,6 +29,7 @@ create_attribute(cpu, c3);
 create_attribute(cpu, c6);
 create_attribute(cpu, c7);
 static struct attribute *cpu_stats_attributes[] = {
+    &cpu_wakeup_time_attribute,
     &cpu_wakeups_attribute,
     &cpu_unhalted_attribute,
     &cpu_c3_attribute,
@@ -78,7 +80,15 @@ extern unsigned cpus_present;
 
 void publish_results_to_sysfs(void)
 {
-	int err = kobject_init_and_add(&(pkg_stats.kobject), &pkg_ktype, NULL, "mwait_measurements");
+	int err;
+
+	if (vendor == X86_VENDOR_AMD)
+	{
+		pkg_stats_attributes[2] = NULL;
+		cpu_stats_attributes[2] = NULL;
+	}
+
+	err = kobject_init_and_add(&(pkg_stats.kobject), &pkg_ktype, NULL, "mwait_measurements");
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{
 		err |= kobject_init_and_add(&(cpu_stats[i].kobject), &cpu_ktype, &(pkg_stats.kobject), "cpu%u", i);
