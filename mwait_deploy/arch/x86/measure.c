@@ -12,6 +12,8 @@
 #include <asm/msr-index.h>
 #include <asm/io_apic.h>
 
+#define APIC_LVT_TIMER_MODE_MASK (0x3 << 17)
+
 static char *mwait_hint = NULL;
 module_param(mwait_hint, charp, 0);
 MODULE_PARM_DESC(mwait_hint, "The hint mwait should use. If this is given, target_cstate and target_subcstate are ignored.");
@@ -21,12 +23,19 @@ MODULE_PARM_DESC(target_cstate, "The C-State that gets passed to mwait as a hint
 static int target_subcstate = 0;
 module_param(target_subcstate, int, 0);
 MODULE_PARM_DESC(target_subcstate, "The sub C-State that gets passed to mwait as a hint.");
+static char *entry_mechanism = "MWAIT";
+module_param(entry_mechanism, charp, 0);
+MODULE_PARM_DESC(entry_mechanism, "The mechanism used to enter the C-State. Supported are 'MWAIT' and 'IOPORT'. Default is 'MWAIT'.");
+static char *io_port = NULL;
+module_param(io_port, charp, 0);
+MODULE_PARM_DESC(io_port, "If entry_mechanism is 'IOPORT', this needs to contain the io port address that has to be read.");
 
 DECLARE_PER_CPU(int, trigger);
 DECLARE_PER_CPU(int, wakeups);
 
 static int dummy;
 static u32 calculated_mwait_hint;
+static u16 calculated_io_port;
 static u32 rapl_unit;
 static int apic_id_of_cpu0;
 static int hpet_pin;
@@ -40,6 +49,14 @@ unsigned vendor;
 
 static u32 msr_rapl_power_unit;
 static u32 msr_pkg_energy_status;
+
+enum entry_mechanism
+{
+	ENTRY_MECHANISM_UNKNOWN,
+	ENTRY_MECHANISM_MWAIT,
+	ENTRY_MECHANISM_IOPORT
+};
+static enum entry_mechanism calculated_entry_mechanism;
 
 DEFINE_PER_CPU(u64, start_unhalted);
 DEFINE_PER_CPU(u64, final_unhalted);
@@ -194,8 +211,21 @@ void do_system_specific_sleep(int this_cpu)
 {
 	while (per_cpu(trigger, this_cpu))
 	{
-		asm volatile("monitor;" ::"a"(&dummy), "c"(0), "d"(0));
-		asm volatile("mwait;" ::"a"(calculated_mwait_hint), "c"(0));
+		switch (calculated_entry_mechanism)
+		{
+		case ENTRY_MECHANISM_MWAIT:
+			asm volatile("monitor;" ::"a"(&dummy), "c"(0), "d"(0));
+			asm volatile("mwait;" ::"a"(calculated_mwait_hint), "c"(0));
+			break;
+
+		case ENTRY_MECHANISM_IOPORT:
+			inb(calculated_io_port);
+			break;
+
+		case ENTRY_MECHANISM_UNKNOWN:
+			break;
+		}
+
 		per_cpu(wakeups, this_cpu) += 1;
 	}
 }
@@ -407,30 +437,123 @@ static inline u32 get_rapl_unit(void)
 
 void disable_percpu_interrupts(void)
 {
+	u32 value;
+
+	value = apic_read(APIC_LVTT);
+	value |= APIC_LVT_MASKED;
+	apic_write(APIC_LVTT, value);
+
+	value = apic_read(APIC_LVTTHMR);
+	value |= APIC_LVT_MASKED;
+	apic_write(APIC_LVTTHMR, value);
+
+	value = apic_read(APIC_LVTPC);
+	value |= APIC_LVT_MASKED;
+	apic_write(APIC_LVTPC, value);
+
+	value = apic_read(APIC_LVT0);
+	value |= APIC_LVT_MASKED;
+	apic_write(APIC_LVT0, value);
+
+	value = apic_read(APIC_LVT1);
+	value |= APIC_LVT_MASKED;
+	apic_write(APIC_LVT1, value);
+
+	value = apic_read(APIC_LVTERR);
+	value |= APIC_LVT_MASKED;
+	apic_write(APIC_LVTERR, value);
+
+	value = apic_read(APIC_LVTCMCI);
+	value |= APIC_LVT_MASKED;
+	apic_write(APIC_LVTCMCI, value);
 }
 
 void enable_percpu_interrupts(void)
 {
+	u32 value;
+
+	value = apic_read(APIC_LVTCMCI);
+	value &= ~APIC_LVT_MASKED;
+	apic_write(APIC_LVTCMCI, value);
+
+	value = apic_read(APIC_LVTERR);
+	value &= ~APIC_LVT_MASKED;
+	apic_write(APIC_LVTERR, value);
+
+	value = apic_read(APIC_LVT1);
+	value &= ~APIC_LVT_MASKED;
+	apic_write(APIC_LVT1, value);
+
+	value = apic_read(APIC_LVT0);
+	value &= ~APIC_LVT_MASKED;
+	apic_write(APIC_LVT0, value);
+
+	value = apic_read(APIC_LVTPC);
+	value &= ~APIC_LVT_MASKED;
+	apic_write(APIC_LVTPC, value);
+
+	value = apic_read(APIC_LVTTHMR);
+	value &= ~APIC_LVT_MASKED;
+	apic_write(APIC_LVTTHMR, value);
+
+	value = apic_read(APIC_LVTT);
+	value &= ~APIC_LVT_MASKED;
+	apic_write(APIC_LVTT, value);
+
+	// Restart the timer, if it is in oneshot mode
+	// Necessary, so the system continues working properly
+	if (!(value & APIC_LVT_TIMER_MODE_MASK))
+		apic_write(APIC_TMICT, 1);
 }
 
 int prepare_measurement(void)
 {
 	on_each_cpu(per_cpu_init, NULL, 1);
-	if (mwait_hint == NULL)
+
+	printk(KERN_INFO "Using C-State entry mechanism '%s'.", entry_mechanism);
+	if (strcmp(entry_mechanism, "MWAIT") == 0)
 	{
-		calculated_mwait_hint = 0;
-		calculated_mwait_hint += target_subcstate & MWAIT_SUBSTATE_MASK;
-		calculated_mwait_hint += (get_cstate_hint() & MWAIT_CSTATE_MASK) << MWAIT_SUBSTATE_SIZE;
+		calculated_entry_mechanism = ENTRY_MECHANISM_MWAIT;
+		if (mwait_hint == NULL)
+		{
+			calculated_mwait_hint = 0x0;
+			calculated_mwait_hint += target_subcstate & MWAIT_SUBSTATE_MASK;
+			calculated_mwait_hint += (get_cstate_hint() & MWAIT_CSTATE_MASK) << MWAIT_SUBSTATE_SIZE;
+		}
+		else if (kstrtou32(mwait_hint, 0, &calculated_mwait_hint))
+		{
+			calculated_mwait_hint = 0x0;
+			printk(KERN_WARNING "Interpreting mwait_hint failed, falling back to hint 0x0!\n");
+		}
+
+		printk(KERN_INFO "Using MWAIT hint 0x%x.", calculated_mwait_hint);
+	}
+	else if (strcmp(entry_mechanism, "IOPORT") == 0)
+	{
+		calculated_entry_mechanism = ENTRY_MECHANISM_IOPORT;
+
+		if (!io_port)
+		{
+
+			calculated_io_port = 0x0;
+			printk(KERN_ERR "No IO port address given in io_port, despite using 'IOPORT' entry mechanism. Aborting!\n");
+			return 1;
+		}
+
+		if (kstrtou16(io_port, 0, &calculated_io_port))
+		{
+			calculated_io_port = 0x0;
+			printk(KERN_ERR "Interpreting io_port failed, aborting!\n");
+			return 1;
+		}
+		printk(KERN_INFO "Using IO port 0x%x.\n", calculated_io_port);
 	}
 	else
 	{
-		if (kstrtou32(mwait_hint, 0, &calculated_mwait_hint))
-		{
-			calculated_mwait_hint = 0;
-			printk(KERN_ERR "Interpreting mwait_hint failed, falling back to hint 0x0!\n");
-		}
+		calculated_entry_mechanism = ENTRY_MECHANISM_UNKNOWN;
+		printk(KERN_ERR "C-State entry mechanism '%s' unknown, aborting!\n", entry_mechanism);
+		return 1;
 	}
-	printk(KERN_INFO "Using MWAIT hint 0x%x.", calculated_mwait_hint);
 
 	if (vendor == X86_VENDOR_AMD)
 	{
@@ -444,7 +567,7 @@ int prepare_measurement(void)
 	}
 
 	rapl_unit = get_rapl_unit();
-	printk(KERN_INFO "rapl_unit in 0.1 microJoule: %u\n", rapl_unit);
+	printk(KERN_INFO "RAPL Unit in 0.1 microJoule: %u\n", rapl_unit);
 
 	register_nmi_handler(NMI_UNKNOWN, measurement_callback, NMI_FLAG_FIRST, "measurement_callback");
 
@@ -454,7 +577,7 @@ int prepare_measurement(void)
 	hpet_pin = select_hpet_pin();
 	if (hpet_pin == -1)
 	{
-		printk(KERN_ERR "ERROR: No suitable pin found for HPET, aborting!\n");
+		printk(KERN_ERR "No suitable pin found for HPET, aborting!\n");
 		return 1;
 	}
 	printk(KERN_INFO "Using IOAPIC pin %i for HPET.\n", hpet_pin);

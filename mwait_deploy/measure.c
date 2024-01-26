@@ -155,7 +155,8 @@ static void measure(unsigned number)
 static int mwait_init(void)
 {
 	preliminary_checks();
-	prepare_measurement();
+	if (prepare_measurement())
+		return 1;
 
 	measurement_count = measurement_count < MAX_NUMBER_OF_MEASUREMENTS
 				? measurement_count
