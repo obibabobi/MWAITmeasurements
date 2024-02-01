@@ -12,6 +12,12 @@ plt.rcParams['figure.dpi'] = 300
 
 results_directory = sys.argv[1]
 
+def sorting_function(index):
+    numbers = re.findall(r'\d+', index);
+    if len(numbers)==0:
+        return 0
+    return int(numbers[0])
+
 def add_pkg_energy_consumption(df, directory, name):
     new_df = pd.read_csv(directory+"/"+name+"/energy_consumption", names=[name])
     new_df /= 10000000
@@ -21,7 +27,7 @@ df = pd.DataFrame()
 directory = results_directory+"cstates"
 for file in os.listdir(directory):
     add_pkg_energy_consumption(df, directory, os.fsdecode(file))
-df = df.reindex(sorted(df.columns, key=lambda index: int(re.findall(r'\d+', index)[0])), axis=1)
+df = df.reindex(sorted(df.columns, key=sorting_function), axis=1)
 plot = df.plot.box()
 plot.set_ylim(ymin=0)
 plot.set_ylabel("Joule")
@@ -31,14 +37,14 @@ df = pd.DataFrame()
 directory = results_directory+"cores_mwait"
 for file in os.listdir(directory):
     add_pkg_energy_consumption(df, directory, os.fsdecode(file))
-df = df.reindex(sorted(df.columns), axis=1)
+df = df.reindex(sorted(df.columns, key=sorting_function), axis=1)
 plot = df.plot.box()
 plot.set_ylim(ymin=0)
 plot.set_ylabel("Joule")
 plot.figure.savefig('output/no_mwait.pdf')
 
 def add_latencies(df, directory, name):
-    new_df = pd.read_csv(directory+"/"+name+"/wakeup_time", names=[name])
+    new_df = pd.read_csv(directory+"/"+name+"/cpu0/wakeup_time", names=[name])
     new_df /= 1000
     df.insert(len(df.columns), name, new_df[name])
 
@@ -46,7 +52,7 @@ df = pd.DataFrame()
 directory = results_directory+"cstates"
 for file in os.listdir(directory):
     add_latencies(df, directory, os.fsdecode(file))
-df = df.reindex(sorted(df.columns, key=lambda index: int(re.findall(r'\d+', index)[0])), axis=1)
+df = df.reindex(sorted(df.columns, key=sorting_function), axis=1)
 plot = df.plot.box()
 plot.set_ylim(ymin=0)
 plot.set_ylabel("microseconds")

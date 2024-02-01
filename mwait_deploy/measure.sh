@@ -14,8 +14,10 @@ fi
 FREQ_GOVERNOR=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)
 echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 
-NMI_WATCHDOG=$(cat /proc/sys/kernel/nmi_watchdog)
-echo 0 > /proc/sys/kernel/nmi_watchdog
+if [[ -e /proc/sys/kernel/nmi_watchdog ]]; then
+    NMI_WATCHDOG=$(cat /proc/sys/kernel/nmi_watchdog)
+    echo 0 > /proc/sys/kernel/nmi_watchdog
+fi
 
 function measure {
     insmod mwait.ko $2
@@ -26,14 +28,30 @@ function measure {
 # measurements
 MEASUREMENT_NAME=cstates
 mkdir $RESULTS_DIR/$MEASUREMENT_NAME
-measure "C0" "target_cstate=0" $MEASUREMENT_NAME
 for STATE in /sys/devices/system/cpu/cpu0/cpuidle/state*;
 do
     NAME=$(< "$STATE"/name);
-    [[ "$NAME" == 'POLL' ]] && continue;
+    if [[ "$NAME" == 'POLL' ]]; then
+        measure $NAME "cpus_mwait=0" $MEASUREMENT_NAME
+        continue;
+    fi
     DESC=$(< "$STATE"/desc);
-    MWAIT_HINT=${DESC#MWAIT };
-    measure $NAME "mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
+    if [[ "${DESC%% *}" == 'ACPI' ]]; then
+        DESC=${DESC#ACPI };
+        if [[ "${DESC%% *}" == 'IOPORT' ]]; then
+            IO_PORT=${DESC#IOPORT };
+            measure $NAME "entry_mechanism=IOPORT io_port=$IO_PORT" $MEASUREMENT_NAME
+        elif [[ "${DESC%% *}" == 'FFH' ]]; then
+            DESC=${DESC#FFH };
+            if [[ "${DESC%% *}" == 'MWAIT' ]]; then
+                MWAIT_HINT=${DESC#MWAIT };
+                measure $NAME "mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
+            fi
+        fi
+    elif [[ "${DESC%% *}" == 'MWAIT' ]]; then   # the Intel cpuidle driver does not prefix the description
+        MWAIT_HINT=${DESC#MWAIT };
+        measure $NAME "mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
+    fi
 done
 
 MEASUREMENT_NAME=cores_mwait
@@ -44,6 +62,8 @@ do
 done
 
 # cleanup
-echo $NMI_WATCHDOG > /proc/sys/kernel/nmi_watchdog
+if [[ -e /proc/sys/kernel/nmi_watchdog ]]; then
+    echo $NMI_WATCHDOG > /proc/sys/kernel/nmi_watchdog
+fi
 echo $FREQ_GOVERNOR | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
 popd
