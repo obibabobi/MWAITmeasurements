@@ -59,7 +59,12 @@ void set_cpu_start_values(int this_cpu)
 {
 }
 
-void setup_wakeup(int this_cpu)
+void setup_leader_wakeup(int this_cpu)
+{
+	setup_wakeup(this_cpu);
+}
+
+inline void setup_wakeup(int this_cpu)
 {
 	s32 ticks = (sc_frequency / 1000) * measurement_duration;
 	per_cpu(start_sc, this_cpu) = read_sysreg(CNTPCT_EL0);

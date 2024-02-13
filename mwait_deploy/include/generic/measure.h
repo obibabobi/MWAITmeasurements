@@ -25,7 +25,7 @@ void set_global_final_values(void);
 void set_cpu_final_values(int this_cpu);
 void set_global_start_values(void);
 void set_cpu_start_values(int this_cpu);
-void setup_leader_wakeup(void);
+void setup_leader_wakeup(int this_cpu);
 void setup_wakeup(int this_cpu);
 void do_system_specific_sleep(int this_cpu);
 void evaluate_global(void);

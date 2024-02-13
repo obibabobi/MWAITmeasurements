@@ -54,7 +54,7 @@ static inline void sync(int this_cpu)
 		set_global_start_values();
 		atomic_inc(&sync_var);
 		set_cpu_start_values(this_cpu);
-		setup_leader_wakeup();
+		setup_leader_wakeup(this_cpu);
 		atomic_inc(&sync_var);
 	}
 	else
