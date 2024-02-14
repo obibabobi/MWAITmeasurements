@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import subprocess
 from timeit import default_timer as timer
 import sys, os
