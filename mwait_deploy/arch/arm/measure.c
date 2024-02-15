@@ -1,8 +1,13 @@
 #include "measure.h"
 #include "sysfs.h"
 
+#include <linux/moduleparam.h>
 #include <linux/percpu.h>
 #include <linux/interrupt.h>
+
+static char *entry_mechanism = "WFI";
+module_param(entry_mechanism, charp, 0);
+MODULE_PARM_DESC(entry_mechanism, "The mechanism used to enter the idle state. Supported are 'WFI' and 'POLL'. Default is 'WFI'.");
 
 DECLARE_PER_CPU(int, trigger);
 DECLARE_PER_CPU(int, wakeups);
@@ -15,25 +20,19 @@ u32 sc_frequency;
 
 static inline bool wakeup_handler(void)
 {
-	u64 ctl, sc;
-	s32 tval;
+	u64 sc;
 	int this_cpu;
 
 	sc = read_sysreg(CNTPCT_EL0);
 
 	this_cpu = smp_processor_id();
 
-	tval = read_sysreg(CNTP_TVAL_EL0);
-	ctl = read_sysreg(CNTP_CTL_EL0);
-
 	if (sc < per_cpu(end_sc, this_cpu))
 	{
 		per_cpu(wakeups, this_cpu) += 1;
 
-		return 1;
+		return true;
 	}
-
-	printk("CPU %i: CNTP_TVAL_EL0: %i, CNTP_CTL_EL0: %llu\n", this_cpu, tval, ctl);
 
 	if (!this_cpu)
 	{
@@ -44,7 +43,7 @@ static inline bool wakeup_handler(void)
 
 	all_cpus_callback(this_cpu);
 
-	return 0;
+	return false;
 }
 
 void wakeup_other_cpus(void)
@@ -84,7 +83,16 @@ void do_system_specific_sleep(int this_cpu)
 {
 	do
 	{
-		asm volatile("wfi;");
+		switch (per_cpu(cpu_entry_mechanism, this_cpu))
+		{
+		case ENTRY_MECHANISM_WFI:
+			wfi();
+			break;
+
+		case ENTRY_MECHANISM_POLL:
+		case ENTRY_MECHANISM_UNKNOWN:
+			break;
+		}
 	} while (wakeup_handler());
 }
 
@@ -140,6 +148,22 @@ void enable_percpu_interrupts(void)
 
 int prepare_measurement(void)
 {
+	printk(KERN_INFO "Using entry mechanism '%s'.", entry_mechanism);
+	if (strcmp(entry_mechanism, "POLL") == 0)
+	{
+		requested_entry_mechanism = ENTRY_MECHANISM_POLL;
+	}
+	else if (strcmp(entry_mechanism, "WFI") == 0)
+	{
+		requested_entry_mechanism = ENTRY_MECHANISM_WFI;
+	}
+	else
+	{
+		requested_entry_mechanism = ENTRY_MECHANISM_UNKNOWN;
+		printk(KERN_ERR "Entry mechanism '%s' unknown, aborting!\n", entry_mechanism);
+		return 1;
+	}
+
 	sc_frequency = read_sysreg(CNTFRQ_EL0) & 0xffffffff;
 
 	for (int i = 0; i <= 1000; ++i)

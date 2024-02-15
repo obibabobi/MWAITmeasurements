@@ -12,12 +12,14 @@ MODULE_PARM_DESC(measurement_duration, "Duration of each measurement in millisec
 int measurement_count = 10;
 module_param(measurement_count, int, 0);
 MODULE_PARM_DESC(measurement_count, "How many measurements should be done.");
-static int cpus_mwait = -1;
-module_param(cpus_mwait, int, 0);
-MODULE_PARM_DESC(cpus_mwait, "Number of CPUs that should do mwait instead of a busy loop during the measurement.");
+static int cpus_sleep = -1;
+module_param(cpus_sleep, int, 0);
+MODULE_PARM_DESC(cpus_sleep, "Number of CPUs that should use the requested entry_mechanism to sleep instead of polling during the measurement.\n"
+			     "If 'POLL' was selected as entry_mechanism, this setting does nothing.\n"
+			     "By default, none of the CPUs poll.");
 static char *cpu_selection = "core";
 module_param(cpu_selection, charp, 0);
-MODULE_PARM_DESC(cpu_selection, "How the cpus doing mwait should be selected. Supported are 'core' and 'cpu_nr'.");
+MODULE_PARM_DESC(cpu_selection, "How the CPUs to poll instead should be selected. Supported are 'core' and 'cpu_nr'.");
 
 u64 energy_consumption;
 DEFINE_PER_CPU(u64, wakeup_time);
@@ -26,6 +28,8 @@ DEFINE_PER_CPU(u64, wakeups);
 unsigned cpus_present;
 bool redo_measurement;
 DEFINE_PER_CPU(int, trigger);
+enum entry_mechanism requested_entry_mechanism;
+DEFINE_PER_CPU(enum entry_mechanism, cpu_entry_mechanism);
 
 static atomic_t sync_var;
 
@@ -72,25 +76,6 @@ static inline void sync(int this_cpu)
 	}
 }
 
-static void do_idle_loop(int this_cpu)
-{
-	while (per_cpu(trigger, this_cpu))
-	{
-	}
-}
-
-static bool should_do_mwait(int this_cpu)
-{
-	if (strcmp(cpu_selection, "cpu_nr") == 0)
-	{
-		return this_cpu < cpus_mwait;
-	}
-
-	return (this_cpu < cpus_present / 2
-		    ? 2 * this_cpu
-		    : (this_cpu - (cpus_present / 2)) * 2 + 1) < cpus_mwait;
-}
-
 static void per_cpu_func(void *info)
 {
 	unsigned long irq_flags;
@@ -98,20 +83,8 @@ static void per_cpu_func(void *info)
 	local_irq_save(irq_flags);
 	disable_percpu_interrupts();
 
-	per_cpu(trigger, this_cpu) = 1;
-
-	printk("%i: Measurement started.\n", this_cpu);
-
 	sync(this_cpu);
-
-	if (should_do_mwait(this_cpu))
-	{
-		do_system_specific_sleep(this_cpu);
-	}
-	else
-	{
-		do_idle_loop(this_cpu);
-	}
+	do_system_specific_sleep(this_cpu);
 
 	enable_percpu_interrupts();
 	local_irq_restore(irq_flags);
@@ -136,10 +109,13 @@ static void measure(unsigned number)
 	do
 	{
 		redo_measurement = 0;
-		prepare_before_each_measurement();
 		for (unsigned i = 0; i < cpus_present; ++i)
+		{
 			per_cpu(wakeups, i) = 0;
+			per_cpu(trigger, i) = 1;
+		}
 		atomic_set(&sync_var, 0);
+		prepare_before_each_measurement();
 
 		on_each_cpu(per_cpu_func, NULL, 1);
 
@@ -153,6 +129,18 @@ static void measure(unsigned number)
 	commit_results(number);
 }
 
+static bool should_sleep(int cpu)
+{
+	if (strcmp(cpu_selection, "cpu_nr") == 0)
+	{
+		return cpu < cpus_sleep;
+	}
+
+	return (cpu < cpus_present / 2
+		    ? 2 * cpu
+		    : (cpu - (cpus_present / 2)) * 2 + 1) < cpus_sleep;
+}
+
 static int mwait_init(void)
 {
 	preliminary_checks();
@@ -164,8 +152,11 @@ static int mwait_init(void)
 				: MAX_NUMBER_OF_MEASUREMENTS;
 
 	cpus_present = num_present_cpus();
-	if (cpus_mwait == -1)
-		cpus_mwait = cpus_present;
+	if (cpus_sleep == -1)
+		cpus_sleep = cpus_present;
+
+	for (unsigned i = 0; i < cpus_present; ++i)
+		per_cpu(cpu_entry_mechanism, i) = should_sleep(i) ? requested_entry_mechanism : ENTRY_MECHANISM_POLL;
 
 	for (unsigned i = 0; i < measurement_count; ++i)
 	{

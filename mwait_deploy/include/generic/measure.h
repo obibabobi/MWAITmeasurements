@@ -5,6 +5,8 @@
 #include <linux/percpu.h>
 
 extern int measurement_duration;
+extern enum entry_mechanism requested_entry_mechanism;
+DECLARE_PER_CPU(enum entry_mechanism, cpu_entry_mechanism);
 
 extern bool redo_measurement;
 extern unsigned cpus_present;
