@@ -93,8 +93,9 @@ static bool should_do_mwait(int this_cpu)
 
 static void per_cpu_func(void *info)
 {
+	unsigned long irq_flags;
 	int this_cpu = get_cpu();
-	local_irq_disable();
+	local_irq_save(irq_flags);
 	disable_percpu_interrupts();
 
 	per_cpu(trigger, this_cpu) = 1;
@@ -113,7 +114,7 @@ static void per_cpu_func(void *info)
 	}
 
 	enable_percpu_interrupts();
-	local_irq_enable();
+	local_irq_restore(irq_flags);
 	put_cpu();
 }
 
