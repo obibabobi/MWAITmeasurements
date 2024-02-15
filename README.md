@@ -1,3 +1,9 @@
+# Dependencies
+
+If you want to use a ODROID Smart Power for gathering external energy measurements, the command line tool ```smartdroid``` is required.
+It can be found [here](https://github.com/obibabobi/SmartDroid).
+Thanks to [@mhaehnel](https://github.com/mhaehnel) for providing this tool!
+
 # Prior Remarks
 
 This guide's goal is to enable you to utilize our measurement framework on your machines.
