@@ -8,7 +8,12 @@ import getopt
 import csv
 from decimal import Decimal
 
-smartdroidPath = "./smartdroid"
+smartdroidPath = os.environ.get('SMARTDROID_PATH', './smartdroid')
+if not os.path.isfile(smartdroidPath):
+	print("To use the ODROID Smart Power, the 'smartdroid' tool is required.\n"
+		"Please supply the path of the smartdroid binary by setting the SMARTDROID_PATH environment variable!")
+	exit(1)
+
 scriptDir = os.path.dirname(__file__)
 
 def getPower():
