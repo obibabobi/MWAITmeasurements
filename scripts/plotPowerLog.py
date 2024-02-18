@@ -13,6 +13,6 @@ def plotPowerLog():
 	
 	plot = df.plot('time', 'power')
 	plot.set_ylim(ymin=0)
-	plt.show()
+	plot.figure.savefig(os.path.join(outputDir, 'power_log.pdf'))
 
 plotPowerLog()
