@@ -65,7 +65,7 @@ void setup_leader_wakeup(int this_cpu)
 
 inline void setup_wakeup(int this_cpu)
 {
-	s32 ticks = (sc_frequency / 1000) * measurement_duration;
+	s32 ticks = (sc_frequency / 1000) * duration;
 	per_cpu(start_sc, this_cpu) = read_sysreg(CNTPCT_EL0);
 	per_cpu(end_sc, this_cpu) = per_cpu(start_sc, this_cpu) + ticks;
 	write_sysreg(per_cpu(end_sc, this_cpu), CNTP_CVAL_EL0);
@@ -146,7 +146,23 @@ void enable_percpu_interrupts(void)
 	}
 }
 
-int prepare_measurement(void)
+inline enum entry_mechanism get_signal_low_mechanism(void)
+{
+	return ENTRY_MECHANISM_WFI;
+}
+
+void prepare(void)
+{
+	sc_frequency = read_sysreg(CNTFRQ_EL0) & 0xffffffff;
+
+	for (int i = 0; i <= 1000; ++i)
+	{
+		irq_set_status_flags(i, IRQ_DISABLE_UNLAZY);
+		disable_irq(i);
+	}
+}
+
+int prepare_measurements(void)
 {
 	printk(KERN_INFO "Using entry mechanism '%s'.", entry_mechanism);
 	if (strcmp(entry_mechanism, "POLL") == 0)
@@ -164,18 +180,14 @@ int prepare_measurement(void)
 		return 1;
 	}
 
-	sc_frequency = read_sysreg(CNTFRQ_EL0) & 0xffffffff;
-
-	for (int i = 0; i <= 1000; ++i)
-	{
-		irq_set_status_flags(i, IRQ_DISABLE_UNLAZY);
-		disable_irq(i);
-	}
-
 	return 0;
 }
 
-void cleanup_after_measurements_done(void)
+void cleanup_measurements(void)
+{
+}
+
+void cleanup(void)
 {
 	for (int i = 0; i <= 1000; ++i)
 	{

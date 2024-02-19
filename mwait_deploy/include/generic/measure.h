@@ -4,7 +4,15 @@
 #include <linux/types.h>
 #include <linux/percpu.h>
 
-extern int measurement_duration;
+enum mode
+{
+	MODE_UNKNOWN,
+	MODE_MEASURE,
+	MODE_SIGNAL
+};
+extern enum mode operation_mode;
+
+extern int duration;
 extern enum entry_mechanism requested_entry_mechanism;
 DECLARE_PER_CPU(enum entry_mechanism, cpu_entry_mechanism);
 
@@ -14,11 +22,13 @@ extern unsigned cpus_present;
 extern u64 energy_consumption;
 DECLARE_PER_CPU(u64, wakeup_time);
 
-int prepare_measurement(void);
+void prepare(void);
+void cleanup(void);
+int prepare_measurements(void);
+void cleanup_measurements(void);
 void preliminary_checks(void);
 void cleanup_after_each_measurement(void);
 void prepare_before_each_measurement(void);
-void cleanup_after_measurements_done(void);
 void leader_callback(void);
 void all_cpus_callback(int this_cpu);
 void wakeup_other_cpus(void);
@@ -36,5 +46,6 @@ void publish_results_to_sysfs(void);
 void cleanup_sysfs(void);
 void disable_percpu_interrupts(void);
 void enable_percpu_interrupts(void);
+enum entry_mechanism get_signal_low_mechanism(void);
 
 #endif
