@@ -34,7 +34,7 @@ static inline bool wakeup_handler(void)
 		return true;
 	}
 
-	if (!this_cpu)
+	if (is_leader(this_cpu))
 	{
 		leader_callback();
 	}

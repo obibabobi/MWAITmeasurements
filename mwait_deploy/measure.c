@@ -3,6 +3,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/sched/clock.h>
 
 MODULE_LICENSE("GPL");
 
@@ -44,6 +45,11 @@ DEFINE_PER_CPU(enum entry_mechanism, cpu_entry_mechanism);
 
 static atomic_t sync_var;
 
+inline bool is_leader(int cpu)
+{
+	return !cpu;
+}
+
 void leader_callback(void)
 {
 	wakeup_other_cpus();
@@ -68,7 +74,7 @@ static inline void sync(int this_cpu)
 	{
 	}
 
-	if (!this_cpu)
+	if (is_leader(this_cpu))
 	{
 		if (operation_mode == MODE_MEASURE)
 		{
@@ -186,36 +192,40 @@ static int measurement_init(void)
 	}
 
 	cleanup_measurements();
-	publish_results_to_sysfs();
+	publish_measurement_results();
 
 	return 0;
 }
+
+static enum entry_mechanism signal_mechanisms[] = {ENTRY_MECHANISM_POLL, ENTRY_MECHANISM_UNKNOWN};
 
 static void per_cpu_signal(void *info)
 {
 	int this_cpu = seize_core();
 
-	per_cpu(cpu_entry_mechanism, this_cpu) = ENTRY_MECHANISM_POLL;
+	int i = 0;
+	for (; i < FLANK_COUNT + 1; ++i)
+	{
+		per_cpu(cpu_entry_mechanism, this_cpu) = signal_mechanisms[i & 1];
 
-	sync(this_cpu);
-	do_system_specific_sleep(this_cpu);
+		sync(this_cpu);
+		if (is_leader(this_cpu))
+			signal_stat.signal_times[i] = local_clock();
 
-	per_cpu(cpu_entry_mechanism, this_cpu) = get_signal_low_mechanism();
-
-	sync(this_cpu);
-	do_system_specific_sleep(this_cpu);
-
-	per_cpu(cpu_entry_mechanism, this_cpu) = ENTRY_MECHANISM_POLL;
-
-	sync(this_cpu);
-	do_system_specific_sleep(this_cpu);
+		do_system_specific_sleep(this_cpu);
+	}
+	signal_stat.signal_times[i] = local_clock();
 
 	release_core(this_cpu);
 }
 
 static void signal_init(void)
 {
+	signal_mechanisms[1] = get_signal_low_mechanism();
+
 	on_each_cpu(per_cpu_signal, NULL, 1);
+
+	publish_signal_times();
 }
 
 static int mwait_init(void)
@@ -250,7 +260,17 @@ static int mwait_init(void)
 
 static void mwait_exit(void)
 {
-	cleanup_sysfs();
+	switch (operation_mode)
+	{
+	case MODE_MEASURE:
+		cleanup_measurement_results();
+		break;
+	case MODE_SIGNAL:
+		cleanup_signal_times();
+		break;
+	case MODE_UNKNOWN:
+		break;
+	}
 }
 
 module_init(mwait_init);

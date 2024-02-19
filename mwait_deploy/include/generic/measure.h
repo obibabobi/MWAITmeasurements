@@ -22,6 +22,8 @@ extern unsigned cpus_present;
 extern u64 energy_consumption;
 DECLARE_PER_CPU(u64, wakeup_time);
 
+bool is_leader(int cpu);
+
 void prepare(void);
 void cleanup(void);
 int prepare_measurements(void);
@@ -42,8 +44,6 @@ void setup_wakeup(int this_cpu);
 void do_system_specific_sleep(int this_cpu);
 void evaluate_global(void);
 void evaluate_cpu(int this_cpu);
-void publish_results_to_sysfs(void);
-void cleanup_sysfs(void);
 void disable_percpu_interrupts(void);
 void enable_percpu_interrupts(void);
 enum entry_mechanism get_signal_low_mechanism(void);

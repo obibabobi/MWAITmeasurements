@@ -49,7 +49,7 @@ static const struct kobj_type cpu_ktype = {
 
 extern unsigned cpus_present;
 
-void publish_results_to_sysfs(void)
+void publish_measurement_results(void)
 {
 	int err = kobject_init_and_add(&(pkg_stats.kobject), &pkg_ktype, NULL, "mwait_measurements");
 	for (unsigned i = 0; i < cpus_present; ++i)
@@ -62,7 +62,7 @@ void publish_results_to_sysfs(void)
 	printk(KERN_INFO "MWAIT: Measurements done.\n");
 }
 
-void cleanup_sysfs(void)
+void cleanup_measurement_results(void)
 {
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{
