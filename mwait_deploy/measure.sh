@@ -19,46 +19,55 @@ if [[ -e /proc/sys/kernel/nmi_watchdog ]]; then
     echo 0 > /proc/sys/kernel/nmi_watchdog
 fi
 
+let "measure_duration = $1 * 3"
+
 function measure {
-    insmod mwait.ko $2
+    insmod mwait.ko $2 duration=$measure_duration
     cp -r /sys/mwait_measurements $RESULTS_DIR/$3/$1
     rmmod mwait
 }
 
-# measurements
-MEASUREMENT_NAME=cstates
-mkdir $RESULTS_DIR/$MEASUREMENT_NAME
-for STATE in /sys/devices/system/cpu/cpu0/cpuidle/state*;
-do
-    NAME=$(< "$STATE"/name);
-    if [[ "$NAME" == 'POLL' ]]; then
-        measure $NAME "cpus_mwait=0" $MEASUREMENT_NAME
-        continue;
-    fi
-    DESC=$(< "$STATE"/desc);
-    if [[ "${DESC%% *}" == 'ACPI' ]]; then
-        DESC=${DESC#ACPI };
-        if [[ "${DESC%% *}" == 'IOPORT' ]]; then
-            IO_PORT=${DESC#IOPORT };
-            measure $NAME "entry_mechanism=IOPORT io_port=$IO_PORT" $MEASUREMENT_NAME
-        elif [[ "${DESC%% *}" == 'FFH' ]]; then
-            DESC=${DESC#FFH };
-            if [[ "${DESC%% *}" == 'MWAIT' ]]; then
-                MWAIT_HINT=${DESC#MWAIT };
-                measure $NAME "mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
-            fi
-        fi
-    elif [[ "${DESC%% *}" == 'MWAIT' ]]; then   # the Intel cpuidle driver does not prefix the description
-        MWAIT_HINT=${DESC#MWAIT };
-        measure $NAME "mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
-    fi
-done
+# synchronization signal
+insmod mwait.ko mode=signal duration=$1
+cp -r /sys/mwait_measurements/signal_times $RESULTS_DIR/
+rmmod mwait
 
-MEASUREMENT_NAME=cores_mwait
+# measurements
+if [[ -e /sys/devices/system/cpu/cpu0/cpuidle ]]; then
+    MEASUREMENT_NAME=cstates
+    mkdir $RESULTS_DIR/$MEASUREMENT_NAME
+    for STATE in /sys/devices/system/cpu/cpu0/cpuidle/state*;
+    do
+        NAME=$(< "$STATE"/name);
+        if [[ "$NAME" == 'POLL' ]]; then
+            measure $NAME "cpus_mwait=0" $MEASUREMENT_NAME
+            continue;
+        fi
+        DESC=$(< "$STATE"/desc);
+        if [[ "${DESC%% *}" == 'ACPI' ]]; then
+            DESC=${DESC#ACPI };
+            if [[ "${DESC%% *}" == 'IOPORT' ]]; then
+                IO_PORT=${DESC#IOPORT };
+                measure $NAME "entry_mechanism=IOPORT io_port=$IO_PORT" $MEASUREMENT_NAME
+            elif [[ "${DESC%% *}" == 'FFH' ]]; then
+                DESC=${DESC#FFH };
+                if [[ "${DESC%% *}" == 'MWAIT' ]]; then
+                    MWAIT_HINT=${DESC#MWAIT };
+                    measure $NAME "mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
+                fi
+            fi
+        elif [[ "${DESC%% *}" == 'MWAIT' ]]; then   # the Intel cpuidle driver does not prefix the description
+            MWAIT_HINT=${DESC#MWAIT };
+            measure $NAME "mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
+        fi
+    done
+fi
+
+MEASUREMENT_NAME=cpus_sleep
 mkdir $RESULTS_DIR/$MEASUREMENT_NAME
 for ((i=0; i<=$(getconf _NPROCESSORS_ONLN); i++));
 do
-    measure $i "cpus_mwait=$i" $MEASUREMENT_NAME
+    measure $i "cpus_sleep=$i" $MEASUREMENT_NAME
 done
 
 # cleanup
