@@ -24,6 +24,8 @@ extern struct pkg_stat
 {
 	struct kobject kobject;
 	u64 energy_consumption[MAX_NUMBER_OF_MEASUREMENTS];
+	u64 start_time[MAX_NUMBER_OF_MEASUREMENTS];
+	u64 end_time[MAX_NUMBER_OF_MEASUREMENTS];
 	struct pkg_attributes attributes;
 } pkg_stats;
 
@@ -36,6 +38,8 @@ extern struct cpu_stat
 } cpu_stats[MAX_CPUS];
 
 extern struct attribute pkg_energy_consumption_attribute;
+extern struct attribute start_time_attribute;
+extern struct attribute end_time_attribute;
 
 extern struct attribute cpu_wakeup_time_attribute;
 extern struct attribute cpu_wakeups_attribute;

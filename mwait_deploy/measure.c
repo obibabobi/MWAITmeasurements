@@ -35,6 +35,8 @@ MODULE_PARM_DESC(cpu_selection, "How the CPUs to poll instead should be selected
 u64 energy_consumption;
 DEFINE_PER_CPU(u64, wakeup_time);
 DEFINE_PER_CPU(u64, wakeups);
+u64 start_time;
+u64 end_time;
 
 unsigned cpus_present;
 bool redo_measurement;
@@ -54,8 +56,10 @@ void leader_callback(void)
 {
 	wakeup_other_cpus();
 
-	if (operation_mode == MODE_MEASURE)
+	if (operation_mode == MODE_MEASURE) {
+		end_time = local_clock();
 		set_global_final_values();
+	}
 }
 
 void all_cpus_callback(int this_cpu)
@@ -79,7 +83,9 @@ static inline void sync(int this_cpu)
 		if (operation_mode == MODE_MEASURE)
 		{
 			set_global_start_values();
+			atomic_inc(&sync_var);
 			set_cpu_start_values(this_cpu);
+			start_time = local_clock();
 		}
 		setup_leader_wakeup(this_cpu);
 	}
@@ -87,6 +93,9 @@ static inline void sync(int this_cpu)
 	{
 		if (operation_mode == MODE_MEASURE)
 		{
+			while (atomic_read(&sync_var) < cpus_present + 1)
+			{
+			}
 			set_cpu_start_values(this_cpu);
 		}
 		setup_wakeup(this_cpu);
@@ -124,6 +133,8 @@ static void per_cpu_measure(void *info)
 static void commit_results(unsigned number)
 {
 	pkg_stats.energy_consumption[number] = energy_consumption;
+	pkg_stats.start_time[number] = start_time;
+	pkg_stats.end_time[number] = end_time;
 
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{
