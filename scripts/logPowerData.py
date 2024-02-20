@@ -83,14 +83,17 @@ def logPower():
 	log['power'] = []
 
 	powerValue = 0.0
-	startTime = timer()
 	try:
 		while True:
 			powerValue = getNextValue(powerValue)
-			log['time'].append(timer() - startTime)
+			log['time'].append(timer())
 			log['power'].append(powerValue)
 	except KeyboardInterrupt:
 		pass
+
+	timeOffset = log['time'][0]
+	for i in range(0, len(log['time'])):
+		log['time'][i] -= timeOffset
 	
 	# limit time precision to milliseconds
 	for i in range(0, len(log['time'])):
