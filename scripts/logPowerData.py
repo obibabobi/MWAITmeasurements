@@ -22,6 +22,13 @@ def getPower():
 			text = True)
 	return float(result.stdout)
 
+def getNextValue(startValue):
+	while True:
+		nextValue = getPower()
+		if nextValue != startValue:
+			return nextValue
+
+
 """
 This function will repeatedly read the power value from the Smart Power measurement device
 and calculate how long it takes for it to change.
@@ -30,22 +37,14 @@ As this time has been observed to have quite a lot of outliers, it will repeat t
 """
 def getMeasurementPeriod():
 	# wait for begin of new measurement period
-	originalValue = getPower()
-	while True:
-		startValue = getPower()
-		if startValue != originalValue:
-			break
+	powerValue = getNextValue(getPower())
 
 	observedPeriods = []
 	startTimer = timer()
 	for _ in range(0,100):
-		while True:
-			nextValue = getPower()
-			if nextValue != startValue:
-				break
+		powerValue = getNextValue(powerValue)
 		endTimer = timer()
 		observedPeriods.append(endTimer - startTimer)
-		startValue = nextValue
 		startTimer = endTimer
 	
 	# if you want more information on the distribution of the periods 
@@ -74,16 +73,15 @@ def logPower():
 	log['time'] = []
 	log['power'] = []
 
-	startValue = 0.0
+	powerValue = 0.0
 	startTime = timer()
-	for _ in range(0,100):
+	try:
 		while True:
-			nextValue = getPower()
-			if nextValue != startValue:
-				break
-		log['time'].append(timer() - startTime)
-		log['power'].append(nextValue)
-		startValue = nextValue
+			powerValue = getNextValue(powerValue)
+			log['time'].append(timer() - startTime)
+			log['power'].append(powerValue)
+	except KeyboardInterrupt:
+		pass
 	
 	# limit time precision to milliseconds
 	for i in range(0, len(log['time'])):
