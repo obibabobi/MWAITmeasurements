@@ -19,16 +19,16 @@ if [[ -e /proc/sys/kernel/nmi_watchdog ]]; then
     echo 0 > /proc/sys/kernel/nmi_watchdog
 fi
 
-let "measure_duration = $1 * 3"
+MEASURE_DURATION=$1
 
 function measure {
-    insmod mwait.ko $2 duration=$measure_duration
+    insmod mwait.ko $2 duration=$MEASURE_DURATION
     cp -r /sys/mwait_measurements $RESULTS_DIR/$3/$1
     rmmod mwait
 }
 
 # synchronization signal
-insmod mwait.ko mode=signal duration=$1
+insmod mwait.ko mode=signal duration=$MEASURE_DURATION
 cp -r /sys/mwait_measurements/signal_times $RESULTS_DIR/
 rmmod mwait
 
