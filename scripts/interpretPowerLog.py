@@ -96,7 +96,7 @@ def seekPattern():
 			sequence[i] = getPowerIntervall(startTime + i * powerPattern.period)
 		if powerPattern.fitsSequence(sequence):
 			return startTime
-		timeStep = 2 << 20	# some big number to work down from
+		timeStep = 1 << 20	# some big number to work down from
 		for i in range(0, len(sequence)):
 			time = startTime + i * powerPattern.period
 			stepSize = getNextTime(time) - time
