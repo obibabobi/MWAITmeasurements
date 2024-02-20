@@ -2,7 +2,7 @@
 
 import subprocess
 from timeit import default_timer as timer
-import sys, os
+import sys, os, signal
 import statistics
 import getopt
 import csv
@@ -15,6 +15,15 @@ if not os.path.isfile(smartdroidPath):
 	exit(1)
 
 scriptDir = os.path.dirname(__file__)
+
+"""
+Python does not automatically raise a KeyboardInterrupt on a SIGINT in all cases.
+Since we need it to exit the log loop, we explicitly register the required handler here.
+"""
+def sigint_handler(signal, frame):
+	raise KeyboardInterrupt
+signal.signal(signal.SIGINT, sigint_handler)
+
 
 def getPower():
 	result = subprocess.run([smartdroidPath, "-m power"],
