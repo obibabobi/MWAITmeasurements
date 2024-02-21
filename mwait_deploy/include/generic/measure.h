@@ -24,7 +24,7 @@ DECLARE_PER_CPU(u64, wakeup_time);
 
 bool is_leader(int cpu);
 
-void prepare(void);
+int prepare(void);
 void cleanup(void);
 int prepare_measurements(void);
 void cleanup_measurements(void);

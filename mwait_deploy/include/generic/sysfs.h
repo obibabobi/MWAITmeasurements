@@ -14,7 +14,7 @@
 extern struct signal_stat
 {
 	struct kobject kobject;
-	u64 signal_times[FLANK_COUNT + 2];
+	u64 signal_times[SIGNAL_EDGE_COUNT + 2];
 } signal_stat;
 
 void publish_signal_times(void);
@@ -49,6 +49,7 @@ ssize_t show_cpu_stats(struct kobject *kobj, struct attribute *attr, char *buf);
 ssize_t ignore_write(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count);
 void release(struct kobject *kobj);
 
+extern int measurement_count;
 ssize_t format_array_into_buffer(u64 *array, int len, char *buf);
 
 #define output_to_sysfs(attribute_name, len)                                                        \

@@ -56,7 +56,8 @@ void leader_callback(void)
 {
 	wakeup_other_cpus();
 
-	if (operation_mode == MODE_MEASURE) {
+	if (operation_mode == MODE_MEASURE)
+	{
 		end_time = local_clock();
 		set_global_final_values();
 	}
@@ -215,7 +216,7 @@ static void per_cpu_signal(void *info)
 	int this_cpu = seize_core();
 
 	int i = 0;
-	for (; i < FLANK_COUNT + 1; ++i)
+	for (; i < SIGNAL_EDGE_COUNT + 1; ++i)
 	{
 		per_cpu(cpu_entry_mechanism, this_cpu) = signal_mechanisms[i & 1];
 
@@ -242,7 +243,8 @@ static void signal_init(void)
 static int mwait_init(void)
 {
 	preliminary_checks();
-	prepare();
+	if (prepare())
+		return 1;
 
 	cpus_present = num_present_cpus();
 

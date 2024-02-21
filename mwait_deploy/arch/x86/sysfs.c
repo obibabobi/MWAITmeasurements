@@ -44,20 +44,20 @@ static const struct attribute_group *cpu_stats_groups[] = {
 
 ssize_t output_pkg_attributes(struct pkg_stat *stat, struct attribute *attr, char *buf)
 {
-	output_to_sysfs(total_tsc);
-	output_to_sysfs(c2);
-	output_to_sysfs(c3);
-	output_to_sysfs(c6);
-	output_to_sysfs(c7);
+	output_to_sysfs(total_tsc, measurement_count);
+	output_to_sysfs(c2, measurement_count);
+	output_to_sysfs(c3, measurement_count);
+	output_to_sysfs(c6, measurement_count);
+	output_to_sysfs(c7, measurement_count);
 	return 0;
 }
 
 ssize_t output_cpu_attributes(struct cpu_stat *stat, struct attribute *attr, char *buf)
 {
-	output_to_sysfs(unhalted);
-	output_to_sysfs(c3);
-	output_to_sysfs(c6);
-	output_to_sysfs(c7);
+	output_to_sysfs(unhalted, measurement_count);
+	output_to_sysfs(c3, measurement_count);
+	output_to_sysfs(c6, measurement_count);
+	output_to_sysfs(c7, measurement_count);
 	return 0;
 }
 
@@ -78,7 +78,7 @@ static const struct kobj_type cpu_ktype = {
 
 extern unsigned cpus_present;
 
-void publish_results_to_sysfs(void)
+void publish_measurement_results(void)
 {
 	int err;
 
@@ -99,7 +99,7 @@ void publish_results_to_sysfs(void)
 	printk(KERN_INFO "MWAIT: Measurements done.\n");
 }
 
-void cleanup_sysfs(void)
+void cleanup_measurement_results(void)
 {
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{

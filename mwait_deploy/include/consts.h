@@ -4,6 +4,6 @@
 #define MAX_NUMBER_OF_MEASUREMENTS (1000)
 #define MAX_CPUS (32)
 
-#define FLANK_COUNT (3)
+#define SIGNAL_EDGE_COUNT (3)
 
 #endif

@@ -20,7 +20,7 @@ ssize_t show_signal_times(struct kobject *kobj, struct attribute *attr, char *bu
 {
 	struct signal_stat *stat = container_of(kobj, struct signal_stat, kobject);
 	if (strcmp(attr->name, "signal_times") == 0)
-		return format_array_into_buffer(stat->signal_times, FLANK_COUNT + 2, buf);
+		return format_array_into_buffer(stat->signal_times, SIGNAL_EDGE_COUNT + 2, buf);
 	return 0;
 }
 
@@ -72,8 +72,6 @@ void release(struct kobject *kobj) {}
 
 ssize_t output_pkg_attributes(struct pkg_stat *stat, struct attribute *attr, char *buf);
 ssize_t output_cpu_attributes(struct cpu_stat *stat, struct attribute *attr, char *buf);
-
-extern int measurement_count;
 
 ssize_t show_pkg_stats(struct kobject *kobj, struct attribute *attr, char *buf)
 {

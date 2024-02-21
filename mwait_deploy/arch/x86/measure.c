@@ -14,18 +14,18 @@
 
 #define APIC_LVT_TIMER_MODE_MASK (0x3 << 17)
 
-static char *mwait_hint = NULL;
-module_param(mwait_hint, charp, 0);
-MODULE_PARM_DESC(mwait_hint, "The hint mwait should use. If this is given, target_cstate and target_subcstate are ignored.");
-static int target_cstate = 1;
-module_param(target_cstate, int, 0);
-MODULE_PARM_DESC(target_cstate, "The C-State that gets passed to mwait as a hint.");
-static int target_subcstate = 0;
-module_param(target_subcstate, int, 0);
-MODULE_PARM_DESC(target_subcstate, "The sub C-State that gets passed to mwait as a hint.");
 static char *entry_mechanism = "MWAIT";
 module_param(entry_mechanism, charp, 0);
-MODULE_PARM_DESC(entry_mechanism, "The mechanism used to enter the C-State. Supported are 'MWAIT' and 'IOPORT'. Default is 'MWAIT'.");
+MODULE_PARM_DESC(entry_mechanism, "The mechanism used to enter the C-State. Supported are 'MWAIT', 'IOPORT' and 'POLL'. Default is 'MWAIT'.");
+static char *mwait_hint = NULL;
+module_param(mwait_hint, charp, 0);
+MODULE_PARM_DESC(mwait_hint, "If entry_mechanism is 'MWAIT', this is the hint that mwait will use. If this is given, target_cstate and target_subcstate are ignored.");
+static int target_cstate = 1;
+module_param(target_cstate, int, 0);
+MODULE_PARM_DESC(target_cstate, "If entry_mechanism is 'MWAIT', and mwait_hint is not given, the mwait hint to request this C-state is calculated automatically. Default is 1.");
+static int target_subcstate = 0;
+module_param(target_subcstate, int, 0);
+MODULE_PARM_DESC(target_subcstate, "If entry_mechanism is 'MWAIT', and mwait_hint is not given, the mwait hint to request this sub-C-state is calculated automatically. Default is 0.");
 static char *io_port = NULL;
 module_param(io_port, charp, 0);
 MODULE_PARM_DESC(io_port, "If entry_mechanism is 'IOPORT', this needs to contain the io port address that has to be read.");
@@ -49,14 +49,6 @@ unsigned vendor;
 
 static u32 msr_rapl_power_unit;
 static u32 msr_pkg_energy_status;
-
-enum entry_mechanism
-{
-	ENTRY_MECHANISM_UNKNOWN,
-	ENTRY_MECHANISM_MWAIT,
-	ENTRY_MECHANISM_IOPORT
-};
-static enum entry_mechanism calculated_entry_mechanism;
 
 DEFINE_PER_CPU(u64, start_unhalted);
 DEFINE_PER_CPU(u64, final_unhalted);
@@ -172,9 +164,9 @@ void set_cpu_start_values(int this_cpu)
 	}
 }
 
-void setup_leader_wakeup(void)
+void setup_leader_wakeup(int this_cpu)
 {
-	hpet_comparator = setup_hpet_for_measurement(measurement_duration, hpet_pin);
+	hpet_comparator = setup_hpet_for_measurement(duration, hpet_pin);
 }
 
 void setup_wakeup(int this_cpu)
@@ -211,7 +203,7 @@ void do_system_specific_sleep(int this_cpu)
 {
 	while (per_cpu(trigger, this_cpu))
 	{
-		switch (calculated_entry_mechanism)
+		switch (per_cpu(cpu_entry_mechanism, this_cpu))
 		{
 		case ENTRY_MECHANISM_MWAIT:
 			asm volatile("monitor;" ::"a"(&dummy), "c"(0), "d"(0));
@@ -222,6 +214,7 @@ void do_system_specific_sleep(int this_cpu)
 			inb(calculated_io_port);
 			break;
 
+		case ENTRY_MECHANISM_POLL:
 		case ENTRY_MECHANISM_UNKNOWN:
 			break;
 		}
@@ -240,7 +233,7 @@ void evaluate_global(void)
 	}
 	energy_consumption = (final_rapl - start_rapl) * rapl_unit;
 	final_time -= start_time;
-	if (final_time < measurement_duration * 1000000)
+	if (final_time < duration * 1000000)
 	{
 		printk(KERN_ERR "Measurement lasted only %llu ns.\n", final_time);
 		redo_measurement = 1;
@@ -506,14 +499,43 @@ void enable_percpu_interrupts(void)
 		apic_write(APIC_TMICT, 1);
 }
 
-int prepare_measurement(void)
+inline enum entry_mechanism get_signal_low_mechanism(void)
+{
+	return ENTRY_MECHANISM_MWAIT;
+}
+
+int prepare(void)
+{
+	register_nmi_handler(NMI_UNKNOWN, measurement_callback, NMI_FLAG_FIRST, "measurement_callback");
+
+	apic_id_of_cpu0 = default_cpu_present_to_apicid(0);
+
+	hpet_period = get_hpet_period();
+	hpet_pin = select_hpet_pin();
+	if (hpet_pin == -1)
+	{
+		printk(KERN_ERR "No suitable pin found for HPET, aborting!\n");
+		return 1;
+	}
+	printk(KERN_INFO "Using IOAPIC pin %i for HPET.\n", hpet_pin);
+
+	setup_ioapic_for_measurement(apic_id_of_cpu0, hpet_pin);
+
+	return 0;
+}
+
+int prepare_measurements(void)
 {
 	on_each_cpu(per_cpu_init, NULL, 1);
 
 	printk(KERN_INFO "Using C-State entry mechanism '%s'.", entry_mechanism);
-	if (strcmp(entry_mechanism, "MWAIT") == 0)
+	if (strcmp(entry_mechanism, "POLL") == 0)
 	{
-		calculated_entry_mechanism = ENTRY_MECHANISM_MWAIT;
+		requested_entry_mechanism = ENTRY_MECHANISM_POLL;
+	}
+	else if (strcmp(entry_mechanism, "MWAIT") == 0)
+	{
+		requested_entry_mechanism = ENTRY_MECHANISM_MWAIT;
 		if (mwait_hint == NULL)
 		{
 			calculated_mwait_hint = 0x0;
@@ -530,7 +552,7 @@ int prepare_measurement(void)
 	}
 	else if (strcmp(entry_mechanism, "IOPORT") == 0)
 	{
-		calculated_entry_mechanism = ENTRY_MECHANISM_IOPORT;
+		requested_entry_mechanism = ENTRY_MECHANISM_IOPORT;
 
 		if (!io_port)
 		{
@@ -550,7 +572,7 @@ int prepare_measurement(void)
 	}
 	else
 	{
-		calculated_entry_mechanism = ENTRY_MECHANISM_UNKNOWN;
+		requested_entry_mechanism = ENTRY_MECHANISM_UNKNOWN;
 		printk(KERN_ERR "C-State entry mechanism '%s' unknown, aborting!\n", entry_mechanism);
 		return 1;
 	}
@@ -569,25 +591,14 @@ int prepare_measurement(void)
 	rapl_unit = get_rapl_unit();
 	printk(KERN_INFO "RAPL Unit in 0.1 microJoule: %u\n", rapl_unit);
 
-	register_nmi_handler(NMI_UNKNOWN, measurement_callback, NMI_FLAG_FIRST, "measurement_callback");
-
-	apic_id_of_cpu0 = default_cpu_present_to_apicid(0);
-
-	hpet_period = get_hpet_period();
-	hpet_pin = select_hpet_pin();
-	if (hpet_pin == -1)
-	{
-		printk(KERN_ERR "No suitable pin found for HPET, aborting!\n");
-		return 1;
-	}
-	printk(KERN_INFO "Using IOAPIC pin %i for HPET.\n", hpet_pin);
-
-	setup_ioapic_for_measurement(apic_id_of_cpu0, hpet_pin);
-
 	return 0;
 }
 
-void cleanup_after_measurements_done(void)
+void cleanup_measurements(void)
+{
+}
+
+void cleanup(void)
 {
 	restore_ioapic_after_measurement();
 	unregister_nmi_handler(NMI_UNKNOWN, "measurement_callback");
