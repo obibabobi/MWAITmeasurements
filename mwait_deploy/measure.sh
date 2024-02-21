@@ -34,7 +34,7 @@ rmmod mwait
 
 # measurements
 if [[ -e /sys/devices/system/cpu/cpu0/cpuidle ]]; then
-    MEASUREMENT_NAME=cstates
+    MEASUREMENT_NAME=states
     mkdir $RESULTS_DIR/$MEASUREMENT_NAME
     for STATE in /sys/devices/system/cpu/cpu0/cpuidle/state*;
     do
