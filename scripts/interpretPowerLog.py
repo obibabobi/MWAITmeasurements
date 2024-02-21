@@ -58,14 +58,16 @@ class PowerPattern:
 		
 		risingStartEdge = self.pattern[0] > 0
 		startValue = sequence[0].min if risingStartEdge else sequence[0].max
-		modifier = Decimal(1.0)
 		for i in range(0, len(self.pattern)):
-			modifier += self.pattern[i]
-			value = startValue * modifier
 			risingEdge = self.pattern[i] > 0
-			if ((risingEdge and not sequence[i+1].above(value)) or 
-			(not risingEdge and not sequence[i+1].below(value))):
-				return False
+			if risingEdge:
+				value = sequence[i].min + startValue * self.pattern[i]
+				if not sequence[i+1].above(value):
+					return False
+			else:
+				value = sequence[i].max + startValue * self.pattern[i]
+				if not sequence[i+1].below(value):
+					return False
 		return True
 
 def generatePattern(flankCount, threshold):
