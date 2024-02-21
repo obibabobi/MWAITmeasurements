@@ -23,12 +23,13 @@ def addPkgAttribute(df, dir, measurementName, fileName):
     newDf = pd.read_csv(os.path.join(dir, measurementName, fileName), names=[measurementName])
     df.insert(len(df.columns), measurementName, newDf[measurementName])
 
-def plotPkgMeasurements(dirName, fileName, divisor):
+def plotPkgMeasurements(dirName, fileName, divisor = None):
     dir = os.path.join(resultsDir, dirName)
     df = pd.DataFrame()
     for measurementName in os.listdir(dir):
         addPkgAttribute(df, dir, measurementName, fileName)
-    df /= divisor
+    if divisor is not None:
+        df /= divisor
     df = df.reindex(sorted(df.columns, key=sortingFunction), axis=1)
     return df.plot.box()
 
@@ -112,40 +113,54 @@ def plotResidencies(dirName, cstates, gatherDataFunction):
 
 
 def main():
-    statesDirName = 'cstates'
-    energyConsumptionFileName = 'pkg_energy_consumption'
-    energyDivisor = 10000000    # 0.1 microJoule to Joule
+    statesDirName = 'states'
+    powerFileName = 'power'
 
-    plot = plotPkgMeasurements(statesDirName, energyConsumptionFileName, energyDivisor)
-    plot.set_ylim(ymin=0)
-    plot.set_ylabel('Joule')
-    plot.figure.savefig(os.path.join(outputDir, energyConsumptionFileName + '_by_' + statesDirName + '.pdf'))
+    try:
+        plot = plotPkgMeasurements(statesDirName, powerFileName)
+        plot.set_ylim(ymin=0)
+        plot.set_ylabel('Watts')
+        plot.figure.savefig(os.path.join(outputDir, powerFileName + '_by_' + statesDirName + '.pdf'))
+    except FileNotFoundError:
+        pass
 
-    coresDirName = 'cores_mwait'
+    cpusDirName = 'cpus_sleep'
 
-    plot = plotPkgMeasurements(coresDirName, energyConsumptionFileName, energyDivisor)
-    plot.set_ylim(ymin=0)
-    plot.set_ylabel("Joule")
-    plot.figure.savefig(os.path.join(outputDir, energyConsumptionFileName + '_by_' + coresDirName + '.pdf'))
+    try:
+        plot = plotPkgMeasurements(cpusDirName, powerFileName)
+        plot.set_ylim(ymin=0)
+        plot.set_ylabel("Watts")
+        plot.figure.savefig(os.path.join(outputDir, powerFileName + '_by_' + cpusDirName + '.pdf'))
+    except FileNotFoundError:
+        pass
 
     wakeupTimeFileName = 'wakeup_time'
     wakeupTimeDivisor = 1000    # nanoecond to microsecond
 
-    plot = plotPkgMeasurements(statesDirName, wakeupTimeFileName, wakeupTimeDivisor)
-    plot.set_ylim(ymin=0)
-    plot.set_ylabel("microseconds")
-    plot.figure.savefig(os.path.join(outputDir, wakeupTimeFileName + '_by_' + statesDirName + '.pdf'))
+    try:
+        plot = plotPkgMeasurements(statesDirName, wakeupTimeFileName, wakeupTimeDivisor)
+        plot.set_ylim(ymin=0)
+        plot.set_ylabel("microseconds")
+        plot.figure.savefig(os.path.join(outputDir, wakeupTimeFileName + '_by_' + statesDirName + '.pdf'))
+    except FileNotFoundError:
+        pass
 
 
     pkgCstates = [ 'pkg_c2', 'pkg_c3', 'pkg_c6', 'pkg_c7' ]
-    plot = plotResidencies(statesDirName, pkgCstates, addPkgCstates)
-    plot.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
-    plot.figure.savefig(os.path.join(outputDir, 'pkg_residencies_by_' + statesDirName + '.pdf'))
+    try:
+        plot = plotResidencies(statesDirName, pkgCstates, addPkgCstates)
+        plot.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+        plot.figure.savefig(os.path.join(outputDir, 'pkg_residencies_by_' + statesDirName + '.pdf'))
+    except FileNotFoundError:
+        pass
 
     coreCstates = [ 'unhalted', 'c3', 'c6', 'c7' ]
-    plot = plotResidencies(statesDirName, coreCstates, addCoreCstates)
-    plot.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
-    plot.figure.savefig(os.path.join(outputDir, 'core_residencies_by_' + statesDirName + '.pdf'))
+    try:
+        plot = plotResidencies(statesDirName, coreCstates, addCoreCstates)
+        plot.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
+        plot.figure.savefig(os.path.join(outputDir, 'core_residencies_by_' + statesDirName + '.pdf'))
+    except FileNotFoundError:
+        pass
 
 
 main()
