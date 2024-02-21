@@ -86,6 +86,15 @@ class ApproximateTime:
 	time: Decimal
 	error: Decimal
 
+	def __rsub__(self, other):
+		return ApproximateTime(other - self.time, self.error)
+
+	def __le__(self, other):
+		return self.time + self.error <= other
+	
+	def __ge__(self, other):
+		return self.time - self.error >= other
+
 def getNextTime(time):
 	nextTime = powerLog['time'][0]
 	i = 1
@@ -114,8 +123,48 @@ def seekPattern():
 	return None
 
 
-def main():
-	print(seekPattern())
+def nSecToSeconds(nanoSeconds):
+	return nanoSeconds / 1000000000
 
+def getPowerValues(measurementDir, measureStartTime):
+	startTimeFile = os.path.join(measurementDir, 'start_time')
+	endTimeFile = os.path.join(measurementDir, 'end_time')
+	startTimes = pd.read_csv(startTimeFile, names=['end_time'])['end_time']
+	endTimes = pd.read_csv(endTimeFile, names=['end_time'])['end_time']
+
+	for i in range(0, len(startTimes)):
+		startTimes[i] = nSecToSeconds(startTimes[i]) - measureStartTime
+		endTimes[i] = nSecToSeconds(endTimes[i]) - measureStartTime
+
+	powerValues = [ [] for _ in range(len(startTimes)) ]
+	i = 0
+	while i < len(powerLog['time']):
+		time = powerLog['time'][i]
+		for j in range(0, len(startTimes)):
+			if startTimes[j] <= time <= endTimes[j]:
+				powerValues[j].append(powerLog['power'][i])
+		i += 1
+
+	return powerValues
+
+
+def main():
+	logStartTime = seekPattern()
+	powerLog['time'] -= logStartTime
+
+	signalTimes = pd.read_csv(signalTimesFile, names=['signal_times'])['signal_times']
+	measureStartTime = nSecToSeconds(signalTimes[0])
+
+	measurementTypes = [ e.name for e in os.scandir(resultsDir) if e.is_dir() ]
+	for mType in measurementTypes:
+		typeDir = os.path.join(resultsDir, mType)
+		measurementNames = [ e.name for e in os.scandir(typeDir) if e.is_dir() ]
+		for mName in measurementNames:
+			measurementDir = os.path.join(typeDir, mName)
+
+			powerValues = getPowerValues(measurementDir, measureStartTime)
+			print(mType + ": " + mName)
+			print(powerValues)
+			
 
 main()
