@@ -47,7 +47,7 @@ def getPowerIntervall(time):
 @dataclass
 class PowerPattern:
 	pattern: list
-	period: float
+	period: Decimal
 
 	def __len__(self):
 		return len(self.pattern)
@@ -78,8 +78,13 @@ def generatePattern(edgeCount, threshold):
 		sign *= -1
 	return pattern
 
-powerPattern = PowerPattern(generatePattern(3, Decimal(0.1)), Decimal(1))
+powerPattern = PowerPattern(generatePattern(3, Decimal(0.1)), 1)
 
+
+@dataclass
+class ApproximateTime:
+	time: Decimal
+	error: Decimal
 
 def getNextTime(time):
 	nextTime = powerLog['time'][0]
@@ -96,14 +101,14 @@ def seekPattern():
 	while startTime + (len(sequence)-1) * powerPattern.period < powerLog['time'][len(powerLog)-1]:
 		for i in range(0, len(sequence)):
 			sequence[i] = getPowerIntervall(startTime + i * powerPattern.period)
-		if powerPattern.fitsSequence(sequence):
-			return startTime
 		timeStep = 1 << 20	# some big number to work down from
 		for i in range(0, len(sequence)):
 			time = startTime + i * powerPattern.period
 			stepSize = getNextTime(time) - time
 			if stepSize < timeStep:
 				timeStep = stepSize
+		if powerPattern.fitsSequence(sequence):
+			return ApproximateTime(startTime+timeStep/2, timeStep/2)
 		startTime += timeStep
 	
 	return None
