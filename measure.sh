@@ -27,7 +27,7 @@ done
 pushd "$(dirname "$0")"
 
 # for external measurements: start power logging
-if [ $EXTERNAL_MEASUREMENT = true ]; then
+if [ "$EXTERNAL_MEASUREMENT" = true ]; then
     su -c 'scripts/logPowerData.py & echo $!'
     LOGGER_PID=$?
 fi
@@ -42,7 +42,7 @@ echo "mwait_deploy/measure.sh $2" | ssh root@$1 'bash -s'
 rsync -r root@$1:/root/mwait_deploy/results/ output/results/
 
 # for external measurements: stop power logging
-if [ $EXTERNAL_MEASUREMENT = true ]; then
+if [ "$EXTERNAL_MEASUREMENT" = true ]; then
     su -c "kill -SIGINT $LOGGER_PID"
 fi
 
