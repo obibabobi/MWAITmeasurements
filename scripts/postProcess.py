@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import pandas as pd
-import os
+import os, sys
 from dataclasses import dataclass
 from decimal import Decimal
 import csv
@@ -147,12 +147,6 @@ def getPowerValues(measurementDir, measureStartTime):
 				powerValues[j].append(powerLog['power'][i])
 		i += 1
 
-	for i in range(len(powerValues)):
-		if powerValues[i]:
-			powerValues[i] = statistics.mean(powerValues[i])
-		else:
-			powerValues[i] = -1
-
 	return powerValues
 
 
@@ -181,6 +175,14 @@ def main():
 			measurementDir = os.path.join(typeDir, mName)
 
 			powerValues = getPowerValues(measurementDir, measureStartTime)
+			for i in range(len(powerValues)):
+				if powerValues[i]:
+					powerValues[i] = statistics.mean(powerValues[i])
+					powerValues[i] = round(Decimal(powerValues[i]), 3)
+				else:
+					print('No values found for ' + mType + ':' + mName + '[' + i + ']', file=sys.sterr)
+					powerValues[i] = -1
+
 			writePowerValues(measurementDir, powerValues)
 			
 
