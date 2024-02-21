@@ -70,10 +70,10 @@ class PowerPattern:
 					return False
 		return True
 
-def generatePattern(flankCount, threshold):
+def generatePattern(edgeCount, threshold):
 	pattern = []
 	sign = -1
-	for _ in range(0, flankCount):
+	for _ in range(0, edgeCount):
 		pattern.append(sign * threshold)
 		sign *= -1
 	return pattern
