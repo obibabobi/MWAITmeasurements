@@ -4,6 +4,8 @@ import pandas as pd
 import os
 from dataclasses import dataclass
 from decimal import Decimal
+import csv
+import statistics
 
 scriptDir = os.path.dirname(__file__)
 outputDir = os.path.normpath(os.path.join(scriptDir, '..', 'output'))
@@ -145,7 +147,23 @@ def getPowerValues(measurementDir, measureStartTime):
 				powerValues[j].append(powerLog['power'][i])
 		i += 1
 
+	for i in range(len(powerValues)):
+		if powerValues[i]:
+			powerValues[i] = statistics.mean(powerValues[i])
+		else:
+			powerValues[i] = -1
+
 	return powerValues
+
+
+def writePowerValues(measurementDir, powerValues):
+	powerFile = os.path.join(measurementDir, 'power')
+
+	with open(powerFile, 'w') as file:
+		writer = csv.writer(file)
+
+		for i in range(0, len(powerValues)):
+			writer.writerow([powerValues[i]])
 
 
 def main():
@@ -163,8 +181,7 @@ def main():
 			measurementDir = os.path.join(typeDir, mName)
 
 			powerValues = getPowerValues(measurementDir, measureStartTime)
-			print(mType + ": " + mName)
-			print(powerValues)
+			writePowerValues(measurementDir, powerValues)
 			
 
 main()
