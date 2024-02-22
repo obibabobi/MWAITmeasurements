@@ -18,7 +18,7 @@ powerLogFile = os.path.join(outputDir, 'power_log.csv')
 def decimalConverter(value):
 	return Decimal(value)
 
-powerLog = pd.read_csv(powerLogFile, converters={'time': decimalConverter, 'power': decimalConverter})
+powerLog = None
 
 
 @dataclass
@@ -160,7 +160,9 @@ def writePowerValues(measurementDir, powerValues):
 			writer.writerow([powerValues[i]])
 
 
-def main():
+def associateExternalMeasurements():
+	powerLog = pd.read_csv(powerLogFile, converters={'time': decimalConverter, 'power': decimalConverter})
+
 	logStartTime = seekPattern()
 	powerLog['time'] -= logStartTime
 
@@ -184,6 +186,37 @@ def main():
 					powerValues[i] = -1
 
 			writePowerValues(measurementDir, powerValues)
-			
+
+
+def toJoule(point1MicroJoule):
+	return point1MicroJoule / 10000000
+
+def evaluateInternalMeasurements():
+	measurementTypes = [ e.name for e in os.scandir(resultsDir) if e.is_dir() ]
+	for mType in measurementTypes:
+		typeDir = os.path.join(resultsDir, mType)
+		measurementNames = [ e.name for e in os.scandir(typeDir) if e.is_dir() ]
+		for mName in measurementNames:
+			measurementDir = os.path.join(typeDir, mName)
+
+			energyFile = os.path.join(measurementDir, 'energy_consumption')
+			energyValues = pd.read_csv(energyFile, names=['energy'])['energy']
+
+			duration = 0.1
+			powerValues = toJoule(energyValues) / duration
+
+			for i in range(0, len(powerValues)):
+				powerValues[i] = round(Decimal(powerValues[i]), 5)
+
+			writePowerValues(measurementDir, powerValues)
+
+
+def main():
+	if os.path.isfile(signalTimesFile):
+		associateExternalMeasurements()
+	else:
+		evaluateInternalMeasurements()
+
+
 
 main()
