@@ -201,6 +201,15 @@ void set_cpu_final_values(int this_cpu)
 
 void do_system_specific_sleep(int this_cpu)
 {
+	// handle POLL entry mechanism separately to minimize fluctuation
+	if (per_cpu(cpu_entry_mechanism, this_cpu) == ENTRY_MECHANISM_POLL)
+	{
+		while (per_cpu(trigger, this_cpu))
+		{
+		}
+		return;
+	}
+
 	while (per_cpu(trigger, this_cpu))
 	{
 		switch (per_cpu(cpu_entry_mechanism, this_cpu))
