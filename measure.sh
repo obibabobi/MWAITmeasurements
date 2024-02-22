@@ -22,12 +22,15 @@ while getopts "eh" option; do
     esac
 done
 
+MEASUREBOX_OPTIONS=""
 
 # preparation
 pushd "$(dirname "$0")"
 
 # for external measurements: start power logging
 if [ "$EXTERNAL_MEASUREMENT" = true ]; then
+    MEASUREBOX_OPTIONS="$MEASUREBOX_OPTIONS -s"
+
     su -c 'scripts/logPowerData.py & echo $!'
     LOGGER_PID=$?
 fi
@@ -36,7 +39,7 @@ fi
 rm -rf output/*
 
 # start the measurement script on the measurebox
-echo "mwait_deploy/measure.sh $2" | ssh root@$1 'bash -s'
+echo "mwait_deploy/measure.sh $MEASUREBOX_OPTIONS $2" | ssh root@$1 'bash -s'
 
 # copy the measurement results back to the controllbox
 rsync -r root@$1:/root/mwait_deploy/results/ output/results/

@@ -1,5 +1,11 @@
 #!/bin/bash
 
+while getopts "s" option; do
+    case $option in
+    (s) SIGNAL_REQUESTED=true;;
+    esac
+done
+
 # preparation
 pushd "$(dirname "$0")"
 
@@ -28,9 +34,11 @@ function measure {
 }
 
 # synchronization signal
-insmod mwait.ko mode=signal duration=$MEASURE_DURATION
-cp -r /sys/mwait_measurements/signal_times $RESULTS_DIR/
-rmmod mwait
+if [ "$SIGNAL_REQUESTED" = true ]; then
+    insmod mwait.ko mode=signal duration=$MEASURE_DURATION
+    cp -r /sys/mwait_measurements/signal_times $RESULTS_DIR/
+    rmmod mwait
+fi
 
 # measurements
 if [[ -e /sys/devices/system/cpu/cpu0/cpuidle ]]; then
@@ -40,7 +48,7 @@ if [[ -e /sys/devices/system/cpu/cpu0/cpuidle ]]; then
     do
         NAME=$(< "$STATE"/name);
         if [[ "$NAME" == 'POLL' ]]; then
-            measure $NAME "cpus_mwait=0" $MEASUREMENT_NAME
+            measure $NAME "entry_mechanism=POLL" $MEASUREMENT_NAME
             continue;
         fi
         DESC=$(< "$STATE"/desc);
