@@ -35,11 +35,11 @@ if [ "$EXTERNAL_MEASUREMENT" = true ]; then
     LOGGER_PID=$?
 fi
 
-# get rid of old results
-rm -rf output/*
-
 # start the measurement script on the measurebox
 echo "mwait_deploy/measure.sh $MEASUREBOX_OPTIONS $2" | ssh root@$1 'bash -s'
+
+# get rid of old results
+rm -rf output/*
 
 # copy the measurement results back to the controllbox
 rsync -r root@$1:/root/mwait_deploy/results/ output/results/
