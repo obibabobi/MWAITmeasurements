@@ -19,10 +19,11 @@ DECLARE_PER_CPU(enum entry_mechanism, cpu_entry_mechanism);
 extern bool redo_measurement;
 extern unsigned cpus_present;
 
-extern u64 energy_consumption;
 DECLARE_PER_CPU(u64, wakeup_time);
 
 bool is_leader(int cpu);
+void leader_callback(void);
+void all_cpus_callback(int this_cpu);
 
 int prepare(void);
 void cleanup(void);
@@ -31,8 +32,6 @@ void cleanup_measurements(void);
 void preliminary_checks(void);
 void cleanup_after_each_measurement(void);
 void prepare_before_each_measurement(void);
-void leader_callback(void);
-void all_cpus_callback(int this_cpu);
 void wakeup_other_cpus(void);
 void commit_system_specific_results(unsigned number);
 void set_global_final_values(void);

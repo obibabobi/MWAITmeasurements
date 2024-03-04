@@ -50,6 +50,9 @@ unsigned vendor;
 static u32 msr_rapl_power_unit;
 static u32 msr_pkg_energy_status;
 
+DEFINE_PER_CPU(u64, start_cpu_rapl);
+DEFINE_PER_CPU(u64, final_cpu_rapl);
+DEFINE_PER_CPU(u64, cpu_energy_consumption);
 DEFINE_PER_CPU(u64, start_unhalted);
 DEFINE_PER_CPU(u64, final_unhalted);
 DEFINE_PER_CPU(u64, start_c3);
@@ -59,7 +62,7 @@ DEFINE_PER_CPU(u64, final_c6);
 DEFINE_PER_CPU(u64, start_c7);
 DEFINE_PER_CPU(u64, final_c7);
 static u64 start_time, final_time;
-static u64 start_rapl, final_rapl;
+static u64 start_rapl, final_rapl, energy_consumption;
 static u64 start_tsc, final_tsc;
 static u64 start_pkg_c2, final_pkg_c2;
 static u64 start_pkg_c3, final_pkg_c3;
@@ -105,7 +108,8 @@ static int measurement_callback(unsigned int val, struct pt_regs *regs)
 
 	// Without some delay here, CPUs tend to get stuck on rare occasions
 	// I don't know yet why exactly this happens, so this udelay should be seen as a (hopefully temporary) workaround
-	udelay(1);
+	if (vendor == X86_VENDOR_INTEL)
+		udelay(1);
 
 	return NMI_HANDLED;
 }
@@ -162,6 +166,10 @@ void set_cpu_start_values(int this_cpu)
 		read_msr(MSR_CORE_C6_RESIDENCY, &per_cpu(start_c6, this_cpu));
 		read_msr(MSR_CORE_C7_RESIDENCY, &per_cpu(start_c7, this_cpu));
 	}
+	else if (vendor == X86_VENDOR_AMD)
+	{
+		read_msr(MSR_AMD_CORE_ENERGY_STATUS, &per_cpu(start_cpu_rapl, this_cpu));
+	}
 }
 
 void setup_leader_wakeup(int this_cpu)
@@ -197,6 +205,10 @@ void set_cpu_final_values(int this_cpu)
 		read_msr(MSR_CORE_C6_RESIDENCY, &per_cpu(final_c6, this_cpu));
 		read_msr(MSR_CORE_C7_RESIDENCY, &per_cpu(final_c7, this_cpu));
 	}
+	else if (vendor == X86_VENDOR_AMD)
+	{
+		read_msr(MSR_AMD_CORE_ENERGY_STATUS, &per_cpu(final_cpu_rapl, this_cpu));
+	}
 }
 
 void do_system_specific_sleep(int this_cpu)
@@ -206,7 +218,9 @@ void do_system_specific_sleep(int this_cpu)
 	{
 		while (per_cpu(trigger, this_cpu))
 		{
+			per_cpu(wakeups, this_cpu) += 1;
 		}
+
 		return;
 	}
 
@@ -235,12 +249,20 @@ void do_system_specific_sleep(int this_cpu)
 void evaluate_global(void)
 {
 	final_rapl &= TOTAL_ENERGY_CONSUMED_MASK;
-	if (final_rapl <= start_rapl)
+
+	// handle overflow
+	if (final_rapl >= start_rapl)
 	{
-		printk(KERN_ERR "Result would have been %llu.\n", final_rapl - start_rapl);
-		redo_measurement = 1;
+		final_rapl -= start_rapl;
 	}
-	energy_consumption = (final_rapl - start_rapl) * rapl_unit;
+	else
+	{
+		final_rapl += (TOTAL_ENERGY_CONSUMED_MASK + 1) - start_rapl;
+
+		printk(KERN_INFO "Overflow in Package RAPL register.\n");
+	}
+
+	energy_consumption = final_rapl * rapl_unit;
 	final_time -= start_time;
 	if (final_time < duration * 1000000)
 	{
@@ -281,6 +303,25 @@ void evaluate_cpu(int this_cpu)
 		per_cpu(final_c6, this_cpu) -= per_cpu(start_c6, this_cpu);
 		per_cpu(final_c7, this_cpu) -= per_cpu(start_c7, this_cpu);
 	}
+	else if (vendor == X86_VENDOR_AMD)
+	{
+		per_cpu(start_cpu_rapl, this_cpu) &= TOTAL_ENERGY_CONSUMED_MASK;
+		per_cpu(final_cpu_rapl, this_cpu) &= TOTAL_ENERGY_CONSUMED_MASK;
+
+		// handle overflow
+		if (per_cpu(final_cpu_rapl, this_cpu) >= per_cpu(start_cpu_rapl, this_cpu))
+		{
+			per_cpu(final_cpu_rapl, this_cpu) -= per_cpu(start_cpu_rapl, this_cpu);
+		}
+		else
+		{
+			per_cpu(final_cpu_rapl, this_cpu) += (TOTAL_ENERGY_CONSUMED_MASK + 1) - per_cpu(start_cpu_rapl, this_cpu);
+
+			printk(KERN_INFO "Overflow in Core RAPL register.\n");
+		}
+
+		per_cpu(cpu_energy_consumption, this_cpu) = per_cpu(final_cpu_rapl, this_cpu) * rapl_unit;
+	}
 }
 
 void prepare_before_each_measurement(void)
@@ -296,6 +337,7 @@ void cleanup_after_each_measurement(void)
 
 inline void commit_system_specific_results(unsigned number)
 {
+	pkg_stats.attributes.energy_consumption[number] = energy_consumption;
 	pkg_stats.attributes.total_tsc[number] = final_tsc;
 	if (vendor == X86_VENDOR_INTEL)
 	{
@@ -313,6 +355,10 @@ inline void commit_system_specific_results(unsigned number)
 			cpu_stats[i].attributes.c3[number] = per_cpu(final_c3, i);
 			cpu_stats[i].attributes.c6[number] = per_cpu(final_c6, i);
 			cpu_stats[i].attributes.c7[number] = per_cpu(final_c7, i);
+		}
+		else if (vendor == X86_VENDOR_AMD)
+		{
+			cpu_stats[i].attributes.energy_consumption[number] = per_cpu(cpu_energy_consumption, i);
 		}
 	}
 }

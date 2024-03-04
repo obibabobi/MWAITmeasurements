@@ -44,7 +44,6 @@ void cleanup_signal_times(void)
 	kobject_del(&(signal_stat.kobject));
 }
 
-struct attribute pkg_energy_consumption_attribute = {.name = "energy_consumption", .mode = 0444};
 struct attribute start_time_attribute = {.name = "start_time", .mode = 0444};
 struct attribute end_time_attribute = {.name = "end_time", .mode = 0444};
 
@@ -76,8 +75,6 @@ ssize_t output_cpu_attributes(struct cpu_stat *stat, struct attribute *attr, cha
 ssize_t show_pkg_stats(struct kobject *kobj, struct attribute *attr, char *buf)
 {
 	struct pkg_stat *stat = container_of(kobj, struct pkg_stat, kobject);
-	if (strcmp(attr->name, "energy_consumption") == 0)
-		return format_array_into_buffer(stat->energy_consumption, measurement_count, buf);
 	if (strcmp(attr->name, "start_time") == 0)
 		return format_array_into_buffer(stat->start_time, measurement_count, buf);
 	if (strcmp(attr->name, "end_time") == 0)

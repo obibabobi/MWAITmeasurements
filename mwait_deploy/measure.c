@@ -32,7 +32,6 @@ static char *cpu_selection = "core";
 module_param(cpu_selection, charp, 0);
 MODULE_PARM_DESC(cpu_selection, "How the CPUs to poll instead should be selected. Supported are 'core' and 'cpu_nr'.");
 
-u64 energy_consumption;
 DEFINE_PER_CPU(u64, wakeup_time);
 DEFINE_PER_CPU(u64, wakeups);
 u64 start_time;
@@ -84,7 +83,11 @@ static inline void sync(int this_cpu)
 		if (operation_mode == MODE_MEASURE)
 		{
 			set_global_start_values();
+
+			// we want another sync here in case set_global_start_values() waited for some register to refresh
+			// this happens with x86 RAPL for example
 			atomic_inc(&sync_var);
+
 			set_cpu_start_values(this_cpu);
 			start_time = local_clock();
 		}
@@ -133,7 +136,6 @@ static void per_cpu_measure(void *info)
 
 static void commit_results(unsigned number)
 {
-	pkg_stats.energy_consumption[number] = energy_consumption;
 	pkg_stats.start_time[number] = start_time;
 	pkg_stats.end_time[number] = end_time;
 

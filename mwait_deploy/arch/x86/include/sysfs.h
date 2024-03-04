@@ -7,6 +7,7 @@
 
 struct pkg_attributes
 {
+	u64 energy_consumption[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 total_tsc[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 c2[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 c3[MAX_NUMBER_OF_MEASUREMENTS];
@@ -16,6 +17,7 @@ struct pkg_attributes
 
 struct cpu_attributes
 {
+	u64 energy_consumption[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 unhalted[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 c3[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 c6[MAX_NUMBER_OF_MEASUREMENTS];

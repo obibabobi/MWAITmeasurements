@@ -23,7 +23,6 @@ void cleanup_signal_times(void);
 extern struct pkg_stat
 {
 	struct kobject kobject;
-	u64 energy_consumption[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 start_time[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 end_time[MAX_NUMBER_OF_MEASUREMENTS];
 	struct pkg_attributes attributes;
@@ -37,7 +36,6 @@ extern struct cpu_stat
 	struct cpu_attributes attributes;
 } cpu_stats[MAX_CPUS];
 
-extern struct attribute pkg_energy_consumption_attribute;
 extern struct attribute start_time_attribute;
 extern struct attribute end_time_attribute;
 

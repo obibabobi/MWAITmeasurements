@@ -27,10 +27,10 @@ static inline bool wakeup_handler(void)
 
 	this_cpu = smp_processor_id();
 
+	per_cpu(wakeups, this_cpu) += 1;
+
 	if (sc < per_cpu(end_sc, this_cpu))
 	{
-		per_cpu(wakeups, this_cpu) += 1;
-
 		return true;
 	}
 
