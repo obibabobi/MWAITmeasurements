@@ -5,7 +5,7 @@ help() {
     echo "### Deploy script ###"
     echo "######################"
     echo
-    echo "Syntax: deploy.sh <ip> [-h]"
+    echo "Syntax: deploy.sh [-h] <ip>"
     echo "Description:"
     echo "    <ip>: The IP address of the measurebox"
     echo

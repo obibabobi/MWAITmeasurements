@@ -135,10 +135,11 @@ def main():
         pass
 
     wakeupTimeFileName = 'wakeup_time'
+    wakeupTimePath = os.path.join('cpu0', wakeupTimeFileName)
     wakeupTimeDivisor = 1000    # nanoecond to microsecond
 
     try:
-        plot = plotPkgMeasurements(statesDirName, wakeupTimeFileName, wakeupTimeDivisor)
+        plot = plotPkgMeasurements(statesDirName, wakeupTimePath, wakeupTimeDivisor)
         plot.set_ylim(ymin=0)
         plot.set_ylabel("microseconds")
         plot.figure.savefig(os.path.join(outputDir, wakeupTimeFileName + '_by_' + statesDirName + '.pdf'))

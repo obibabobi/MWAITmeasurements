@@ -5,7 +5,7 @@ help() {
     echo "### Measure script ###"
     echo "######################"
     echo
-    echo "Syntax: measure.sh <ip> <duration> [-e|h]"
+    echo "Syntax: measure.sh [-e|h] <ip> <duration>"
     echo "Description:"
     echo "    <ip>: The IP address of the measurebox"
     echo "    <duration>: Duration of a single measurement in milliseconds."
@@ -47,6 +47,14 @@ rsync -r root@$1:/root/mwait_deploy/results/ output/results/
 # for external measurements: stop power logging
 if [ "$EXTERNAL_MEASUREMENT" = true ]; then
     su -c "kill -SIGINT $LOGGER_PID"
+    until [ -f "output/power_log.csv" ]
+    do
+        sleep 0.1
+    done
 fi
+
+# post process
+scripts/postProcess.py
+scripts/plotMeasurements.py
 
 popd

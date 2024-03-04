@@ -12,8 +12,12 @@ outputDir = os.path.normpath(os.path.join(scriptDir, '..', 'output'))
 resultsDir = os.path.join(outputDir, 'results')
 
 signalTimesFile = os.path.join(resultsDir, 'signal_times')
+durationFile = os.path.join(resultsDir, 'duration')
 powerLogFile = os.path.join(outputDir, 'power_log.csv')
 
+# read duration and convert it from milliseconds to seconds
+duration = pd.read_csv(durationFile, names=['duration'])['duration'][0]
+duration /= 1000
 
 def decimalConverter(value):
 	return Decimal(value)
@@ -80,7 +84,7 @@ def generatePattern(edgeCount, threshold):
 		sign *= -1
 	return pattern
 
-powerPattern = PowerPattern(generatePattern(3, Decimal(0.1)), 1)
+powerPattern = PowerPattern(generatePattern(3, Decimal(0.1)), duration)
 
 
 @dataclass
@@ -202,7 +206,6 @@ def evaluateInternalMeasurements():
 			energyFile = os.path.join(measurementDir, 'energy_consumption')
 			energyValues = pd.read_csv(energyFile, names=['energy'])['energy']
 
-			duration = 0.1
 			powerValues = toJoule(energyValues) / duration
 
 			for i in range(0, len(powerValues)):
@@ -216,7 +219,6 @@ def main():
 		associateExternalMeasurements()
 	else:
 		evaluateInternalMeasurements()
-
 
 
 main()

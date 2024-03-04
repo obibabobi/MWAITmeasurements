@@ -1,8 +1,23 @@
 #!/bin/bash
 
-while getopts "s" option; do
+help() {
+    echo "######################"
+    echo "### Measure script ###"
+    echo "######################"
+    echo
+    echo "Syntax: measure.sh [-s|h] <duration>"
+    echo "Description:"
+    echo "    <duration>: Duration of a single measurement in milliseconds."
+    echo "                Should depend mainly on temporal resolution of power measurement method."
+    echo
+    echo "    -s: Generate power pattern and timestamps for synchronization with external power logging"
+    echo "    -h: Print help, then quit"
+}
+
+while getopts "sh" option; do
     case $option in
     (s) SIGNAL_REQUESTED=true;;
+    (h) help; exit;;
     esac
 done
 
@@ -10,12 +25,10 @@ done
 pushd "$(dirname "$0")"
 
 RESULTS_DIR=results
-if [[ ! -e $RESULTS_DIR ]]; then
-    mkdir $RESULTS_DIR
-else
+if [[ -e $RESULTS_DIR ]]; then
     rm -r $RESULTS_DIR
-    mkdir $RESULTS_DIR
 fi
+mkdir $RESULTS_DIR
 
 FREQ_GOVERNOR=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)
 echo performance | tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor
@@ -26,6 +39,7 @@ if [[ -e /proc/sys/kernel/nmi_watchdog ]]; then
 fi
 
 MEASURE_DURATION=$1
+echo "$MEASURE_DURATION" > $RESULTS_DIR/duration
 
 function measure {
     insmod mwait.ko $2 duration=$MEASURE_DURATION
