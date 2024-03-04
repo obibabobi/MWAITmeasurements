@@ -147,7 +147,7 @@ def main():
         pass
 
 
-    pkgCstates = [ 'pkg_c2', 'pkg_c3', 'pkg_c6', 'pkg_c7' ]
+    pkgCstates = [ 'c2', 'c3', 'c6', 'c7' ]
     try:
         plot = plotResidencies(statesDirName, pkgCstates, addPkgCstates)
         plot.yaxis.set_major_formatter(mtick.PercentFormatter(1.0))
