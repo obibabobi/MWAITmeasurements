@@ -150,8 +150,24 @@ static void commit_results(unsigned number)
 
 static void measure(unsigned number)
 {
+	unsigned repetition = 0;
+	redo_measurement = 0;
+
 	do
 	{
+		if (redo_measurement)
+		{
+			if (++repetition < 10)
+			{
+				printk(KERN_INFO "Redoing measurement, repetition %u.\n", repetition);
+			}
+			else
+			{
+				printk(KERN_WARNING "Max number of redos reached for measurement, keeping current results!\n");
+				break;
+			}
+		}
+
 		redo_measurement = 0;
 		for (unsigned i = 0; i < cpus_present; ++i)
 		{
@@ -165,7 +181,11 @@ static void measure(unsigned number)
 
 		evaluate_global();
 		for (unsigned i = 0; i < cpus_present; ++i)
+		{
 			evaluate_cpu(i);
+			if (per_cpu(cpu_entry_mechanism, i) != ENTRY_MECHANISM_POLL && per_cpu(wakeups, i) > 10)
+				redo_measurement = 1;
+		}
 
 		cleanup_after_each_measurement();
 	} while (redo_measurement);

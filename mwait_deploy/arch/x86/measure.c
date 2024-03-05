@@ -37,7 +37,8 @@ DECLARE_PER_CPU(int, wakeups);
 // necessary because monitor surveils entire lines of memory
 // the size of the monitored line varies from system to system
 // to fit all systems, a relatively large padding was selected here, making sure no other variable can be in the same 512 byte line as dummy
-static struct {
+static struct
+{
 	u64 padding1[63];
 	u64 dummy;
 	u64 padding2[63];
@@ -286,11 +287,6 @@ void evaluate_global(void)
 		final_pkg_c3 -= start_pkg_c3;
 		final_pkg_c6 -= start_pkg_c6;
 		final_pkg_c7 -= start_pkg_c7;
-	}
-
-	if (redo_measurement)
-	{
-		printk(KERN_ERR "Redoing Measurement!\n");
 	}
 }
 
