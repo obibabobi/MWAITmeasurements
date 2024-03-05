@@ -1,3 +1,9 @@
+# DISCLAIMER
+
+CAUTION! THIS IS A PROTOTYPE! DO NOT USE IN PRODUCTIVE SYSTEMS!
+This framework interacts directly with some hardware the Linux kernel uses as well.
+Side effects are not unlikely, leading to potential data loss and system instability!
+
 # Dependencies
 
 If you want to use a ODROID Smart Power for gathering external energy measurements, the command line tool ```smartdroid``` is required.
