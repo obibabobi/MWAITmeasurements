@@ -112,7 +112,7 @@ static int measurement_callback(unsigned int val, struct pt_regs *regs)
 
 	if (!end_of_measurement)
 	{
-		printk(KERN_ERR "CPU %i was unexpectedly interrupted during measurement.\n", this_cpu);
+		printk(KERN_WARNING "CPU %i was unexpectedly interrupted during measurement.\n", this_cpu);
 		redo_measurement = 1;
 	}
 
@@ -137,7 +137,7 @@ void wakeup_other_cpus(void)
 
 static void rdmsr_error(char *reg, unsigned reg_nr)
 {
-	printk(KERN_ERR "WARNING: Failed to read register %s (%u).\n", reg, reg_nr);
+	printk(KERN_WARNING "WARNING: Failed to read register %s (%u).\n", reg, reg_nr);
 }
 
 void wait_for_rapl_update(void)
@@ -276,7 +276,7 @@ void evaluate_global(void)
 	final_time -= start_time;
 	if (final_time < duration * 1000000)
 	{
-		printk(KERN_ERR "Measurement lasted only %llu ns.\n", final_time);
+		printk(KERN_WARNING "Measurement lasted only %llu ns.\n", final_time);
 		redo_measurement = 1;
 	}
 	final_tsc -= start_tsc;
@@ -387,7 +387,7 @@ static void per_cpu_init(void *info)
 
 		if (err)
 		{
-			printk(KERN_ERR "WARNING: Could not enable 'unhalted' register.\n");
+			printk(KERN_WARNING "WARNING: Could not enable 'unhalted' register.\n");
 		}
 	}
 }
@@ -401,7 +401,7 @@ static inline u32 get_cstate_hint(void)
 
 	if (target_cstate > 15)
 	{
-		printk(KERN_ERR "WARNING: target_cstate of %i is invalid, using C1!", target_cstate);
+		printk(KERN_WARNING "WARNING: target_cstate of %i is invalid, using C1!", target_cstate);
 		return 0;
 	}
 
@@ -435,7 +435,7 @@ void preliminary_checks(void)
 	    : "0"(a));
 	if (!(c & (1 << 3)))
 	{
-		printk(KERN_ERR "WARNING: Mwait not supported.\n");
+		printk(KERN_WARNING "WARNING: Mwait not supported.\n");
 	}
 	set_cpu_info(a);
 	printk(KERN_INFO "CPU FAMILY: 0x%x, CPU Model: 0x%x\n", cpu_family, cpu_model);
@@ -446,7 +446,7 @@ void preliminary_checks(void)
 	    : "0"(a));
 	if (!(c & 1))
 	{
-		printk(KERN_ERR "WARNING: Mwait Power Management not supported.\n");
+		printk(KERN_WARNING "WARNING: Mwait Power Management not supported.\n");
 	}
 
 	a = 0x80000007;
@@ -455,7 +455,7 @@ void preliminary_checks(void)
 	    : "0"(a));
 	if (!(d & (1 << 8)))
 	{
-		printk(KERN_ERR "WARNING: TSC not invariant, sleepstate statistics potentially meaningless.\n");
+		printk(KERN_WARNING "WARNING: TSC not invariant, sleepstate statistics potentially meaningless.\n");
 	}
 
 	a = 0x0;
@@ -465,17 +465,17 @@ void preliminary_checks(void)
 	if (b == 0x756E6547 && d == 0x49656E69 && c == 0x6C65746E) /* GenuineIntel in ASCII */
 	{
 		vendor = X86_VENDOR_INTEL;
-		printk(KERN_ERR "INTEL CPU\n");
+		printk(KERN_INFO "INTEL CPU\n");
 	}
 	else if (b == 0x68747541 && d == 0x69746e65 && c == 0x444d4163) /* AuthenticAMD in ASCII */
 	{
 		vendor = X86_VENDOR_AMD;
-		printk(KERN_ERR "AMD CPU\n");
+		printk(KERN_INFO "AMD CPU\n");
 	}
 	else
 	{
 		vendor = X86_VENDOR_UNKNOWN;
-		printk(KERN_ERR "VENDOR UNKNOWN\n");
+		printk(KERN_INFO "VENDOR UNKNOWN\n");
 	}
 }
 
