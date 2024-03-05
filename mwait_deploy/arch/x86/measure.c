@@ -33,7 +33,16 @@ MODULE_PARM_DESC(io_port, "If entry_mechanism is 'IOPORT', this needs to contain
 DECLARE_PER_CPU(int, trigger);
 DECLARE_PER_CPU(int, wakeups);
 
-static int dummy;
+// make sure that there is enough unused space around dummy
+// necessary because monitor surveils entire lines of memory
+// the size of the monitored line varies from system to system
+// to fit all systems, a relatively large padding was selected here, making sure no other variable can be in the same 512 byte line as dummy
+static struct {
+	u64 padding1[63];
+	u64 dummy;
+	u64 padding2[63];
+} dummy;
+
 static u32 calculated_mwait_hint;
 static u16 calculated_io_port;
 static u32 rapl_unit;
@@ -229,7 +238,7 @@ void do_system_specific_sleep(int this_cpu)
 		switch (per_cpu(cpu_entry_mechanism, this_cpu))
 		{
 		case ENTRY_MECHANISM_MWAIT:
-			asm volatile("monitor;" ::"a"(&dummy), "c"(0), "d"(0));
+			asm volatile("monitor;" ::"a"(&dummy.dummy), "c"(0), "d"(0));
 			asm volatile("mwait;" ::"a"(calculated_mwait_hint), "c"(0));
 			break;
 
