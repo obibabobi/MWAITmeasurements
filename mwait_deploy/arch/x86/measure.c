@@ -30,19 +30,18 @@ static char *io_port = NULL;
 module_param(io_port, charp, 0);
 MODULE_PARM_DESC(io_port, "If entry_mechanism is 'IOPORT', this needs to contain the io port address that has to be read.");
 
-DECLARE_PER_CPU(int, trigger);
 DECLARE_PER_CPU(int, wakeups);
 
 // make sure that there is enough unused space around dummy
 // necessary because monitor surveils entire lines of memory
 // the size of the monitored line varies from system to system
 // to fit all systems, a relatively large padding was selected here, making sure no other variable can be in the same 512 byte line as dummy
-static struct
+struct
 {
 	u64 padding1[63];
-	u64 dummy;
+	volatile u64 measurement_ongoing;
 	u64 padding2[63];
-} dummy;
+} padding;
 
 static u32 calculated_mwait_hint;
 static u16 calculated_io_port;
@@ -53,7 +52,6 @@ static u32 hpet_period;
 static u32 cpu_model;
 static u32 cpu_family;
 static int first;
-static bool end_of_measurement;
 
 unsigned vendor;
 
@@ -92,41 +90,26 @@ static int measurement_callback(unsigned int val, struct pt_regs *regs)
 
 	int this_cpu = smp_processor_id();
 
-	if (!this_cpu)
+	if (!is_leader(this_cpu))
+		return NMI_HANDLED;
+
+	if (!first && is_cpu_model(0x6, 0x5e))
 	{
-		if (!first && is_cpu_model(0x6, 0x5e))
-		{
-			++first;
-			return NMI_HANDLED;
-		}
-
-		// only commit the taken time to the global variable if this point is reached
-		hpet_counter = hpet_counter_local;
-
-		end_of_measurement = 1;
-
-		leader_callback();
+		++first;
+		return NMI_HANDLED;
 	}
 
-	all_cpus_callback(this_cpu);
+	// only commit the taken time to the global variable if this point is reached
+	hpet_counter = hpet_counter_local;
 
-	if (!end_of_measurement)
-	{
-		printk(KERN_WARNING "CPU %i was unexpectedly interrupted during measurement.\n", this_cpu);
-		redo_measurement = 1;
-	}
-
-	// Without some delay here, CPUs tend to get stuck on rare occasions
-	// I don't know yet why exactly this happens, so this udelay should be seen as a (hopefully temporary) workaround
-	if (vendor == X86_VENDOR_INTEL)
-		udelay(1);
+	leader_callback();
 
 	return NMI_HANDLED;
 }
 
 void wakeup_other_cpus(void)
 {
-	apic->send_IPI_allbutself(NMI_VECTOR);
+	padding.measurement_ongoing = false;
 }
 
 #define read_msr(msr, p)                           \
@@ -226,20 +209,26 @@ void do_system_specific_sleep(int this_cpu)
 	// handle POLL entry mechanism separately to minimize fluctuation
 	if (per_cpu(cpu_entry_mechanism, this_cpu) == ENTRY_MECHANISM_POLL)
 	{
-		while (per_cpu(trigger, this_cpu))
+		while (padding.measurement_ongoing)
 		{
 			per_cpu(wakeups, this_cpu) += 1;
 		}
 
+		all_cpus_callback(this_cpu);
 		return;
 	}
 
-	while (per_cpu(trigger, this_cpu))
+	while (padding.measurement_ongoing)
 	{
 		switch (per_cpu(cpu_entry_mechanism, this_cpu))
 		{
 		case ENTRY_MECHANISM_MWAIT:
-			asm volatile("monitor;" ::"a"(&dummy.dummy), "c"(0), "d"(0));
+			asm volatile("monitor;" ::"a"(&padding.measurement_ongoing), "c"(0), "d"(0));
+
+			// could get stuck if write occurs between while and monitor
+			if (!padding.measurement_ongoing)
+				break;
+
 			asm volatile("mwait;" ::"a"(calculated_mwait_hint), "c"(0));
 			break;
 
@@ -254,6 +243,8 @@ void do_system_specific_sleep(int this_cpu)
 
 		per_cpu(wakeups, this_cpu) += 1;
 	}
+
+	all_cpus_callback(this_cpu);
 }
 
 void evaluate_global(void)
@@ -331,8 +322,8 @@ void evaluate_cpu(int this_cpu)
 
 void prepare_before_each_measurement(void)
 {
-	end_of_measurement = 0;
 	first = 0;
+	padding.measurement_ongoing = true;
 }
 
 void cleanup_after_each_measurement(void)

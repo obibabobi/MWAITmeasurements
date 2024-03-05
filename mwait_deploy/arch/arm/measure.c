@@ -9,7 +9,6 @@ static char *entry_mechanism = "WFI";
 module_param(entry_mechanism, charp, 0);
 MODULE_PARM_DESC(entry_mechanism, "The mechanism used to enter the idle state. Supported are 'WFI' and 'POLL'. Default is 'WFI'.");
 
-DECLARE_PER_CPU(int, trigger);
 DECLARE_PER_CPU(int, wakeups);
 
 DEFINE_PER_CPU(u64, start_sc);

@@ -39,7 +39,6 @@ u64 end_time;
 
 unsigned cpus_present;
 bool redo_measurement;
-DEFINE_PER_CPU(int, trigger);
 enum mode operation_mode;
 enum entry_mechanism requested_entry_mechanism;
 DEFINE_PER_CPU(enum entry_mechanism, cpu_entry_mechanism);
@@ -66,8 +65,6 @@ void all_cpus_callback(int this_cpu)
 {
 	if (operation_mode == MODE_MEASURE)
 		set_cpu_final_values(this_cpu);
-
-	per_cpu(trigger, this_cpu) = 0;
 }
 
 static inline void sync(int this_cpu)
@@ -170,10 +167,8 @@ static void measure(unsigned number)
 
 		redo_measurement = 0;
 		for (unsigned i = 0; i < cpus_present; ++i)
-		{
 			per_cpu(wakeups, i) = 0;
-			per_cpu(trigger, i) = 1;
-		}
+
 		atomic_set(&sync_var, 0);
 		prepare_before_each_measurement();
 
