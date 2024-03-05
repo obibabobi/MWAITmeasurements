@@ -145,16 +145,41 @@ static void commit_results(unsigned number)
 	commit_system_specific_results(number);
 }
 
+#define WAKEUP_THRESHOLD (10)
+
+static void evaluate(void)
+{
+	u64 actual_duration;
+
+	evaluate_global();
+
+	actual_duration = end_time - start_time;
+	if (actual_duration < duration * 1000000) // milliseconds to nanoseconds
+	{
+		printk(KERN_WARNING "Measurement lasted only %llu ns.\n", end_time);
+		redo_measurement = true;
+	}
+
+	for (unsigned i = 0; i < cpus_present; ++i)
+	{
+		evaluate_cpu(i);
+		if (per_cpu(cpu_entry_mechanism, i) != ENTRY_MECHANISM_POLL && per_cpu(wakeups, i) > WAKEUP_THRESHOLD)
+			redo_measurement = true;
+	}
+}
+
+#define MAX_REPETITIONS (10)
+
 static void measure(unsigned number)
 {
 	unsigned repetition = 0;
-	redo_measurement = 0;
+	redo_measurement = false;
 
 	do
 	{
 		if (redo_measurement)
 		{
-			if (++repetition < 10)
+			if (++repetition < MAX_REPETITIONS)
 			{
 				printk(KERN_INFO "Redoing measurement, repetition %u.\n", repetition);
 			}
@@ -164,23 +189,16 @@ static void measure(unsigned number)
 				break;
 			}
 		}
+		redo_measurement = false;
 
-		redo_measurement = 0;
 		for (unsigned i = 0; i < cpus_present; ++i)
 			per_cpu(wakeups, i) = 0;
-
 		atomic_set(&sync_var, 0);
 		prepare_before_each_measurement();
 
 		on_each_cpu(per_cpu_measure, NULL, 1);
 
-		evaluate_global();
-		for (unsigned i = 0; i < cpus_present; ++i)
-		{
-			evaluate_cpu(i);
-			if (per_cpu(cpu_entry_mechanism, i) != ENTRY_MECHANISM_POLL && per_cpu(wakeups, i) > 10)
-				redo_measurement = 1;
-		}
+		evaluate();
 
 		cleanup_after_each_measurement();
 	} while (redo_measurement);

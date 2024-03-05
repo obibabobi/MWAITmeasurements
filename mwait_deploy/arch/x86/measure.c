@@ -69,7 +69,6 @@ DEFINE_PER_CPU(u64, start_c6);
 DEFINE_PER_CPU(u64, final_c6);
 DEFINE_PER_CPU(u64, start_c7);
 DEFINE_PER_CPU(u64, final_c7);
-static u64 start_time, final_time;
 static u64 start_rapl, final_rapl, energy_consumption;
 static u64 start_tsc, final_tsc;
 static u64 start_pkg_c2, final_pkg_c2;
@@ -138,7 +137,6 @@ void wait_for_rapl_update(void)
 void set_global_start_values(void)
 {
 	wait_for_rapl_update();
-	start_time = local_clock();
 	start_tsc = rdtsc();
 
 	if (vendor == X86_VENDOR_INTEL)
@@ -177,7 +175,6 @@ void setup_wakeup(int this_cpu)
 void set_global_final_values(void)
 {
 	read_msr(msr_pkg_energy_status, &final_rapl);
-	final_time = local_clock();
 	final_tsc = rdtsc();
 
 	if (vendor == X86_VENDOR_INTEL)
@@ -264,12 +261,7 @@ void evaluate_global(void)
 	}
 
 	energy_consumption = final_rapl * rapl_unit;
-	final_time -= start_time;
-	if (final_time < duration * 1000000)
-	{
-		printk(KERN_WARNING "Measurement lasted only %llu ns.\n", final_time);
-		redo_measurement = 1;
-	}
+
 	final_tsc -= start_tsc;
 
 	if (vendor == X86_VENDOR_INTEL)
