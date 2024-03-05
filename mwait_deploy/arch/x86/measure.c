@@ -69,6 +69,8 @@ DEFINE_PER_CPU(u64, start_c6);
 DEFINE_PER_CPU(u64, final_c6);
 DEFINE_PER_CPU(u64, start_c7);
 DEFINE_PER_CPU(u64, final_c7);
+DEFINE_PER_CPU(u64, wakeup_tsc);
+static u64 wakeup_trigger_tsc;
 static u64 start_rapl, final_rapl, energy_consumption;
 static u64 start_tsc, final_tsc;
 static u64 start_pkg_c2, final_pkg_c2;
@@ -108,6 +110,7 @@ static int measurement_callback(unsigned int val, struct pt_regs *regs)
 
 void wakeup_other_cpus(void)
 {
+	wakeup_trigger_tsc = rdtsc();
 	padding.measurement_ongoing = false;
 }
 
@@ -227,6 +230,8 @@ void do_system_specific_sleep(int this_cpu)
 				break;
 
 			asm volatile("mwait;" ::"a"(calculated_mwait_hint), "c"(0));
+
+			per_cpu(wakeup_tsc, this_cpu) = rdtsc();
 			break;
 
 		case ENTRY_MECHANISM_IOPORT:
@@ -275,13 +280,20 @@ void evaluate_global(void)
 
 void evaluate_cpu(int this_cpu)
 {
-	if (!this_cpu)
+	if (is_leader(this_cpu))
 	{
 		per_cpu(wakeup_time, this_cpu) = ((hpet_counter - hpet_comparator) * hpet_period) / 1000000;
 	}
 	else
 	{
-		per_cpu(wakeup_time, this_cpu) = 0;
+		if (per_cpu(cpu_entry_mechanism, this_cpu) == ENTRY_MECHANISM_MWAIT)
+		{
+			per_cpu(wakeup_time, this_cpu) = ((per_cpu(wakeup_tsc, this_cpu) - wakeup_trigger_tsc) * 1000000) / tsc_khz;
+		}
+		else
+		{
+			per_cpu(wakeup_time, this_cpu) = 0;
+		}
 	}
 
 	if (vendor == X86_VENDOR_INTEL)

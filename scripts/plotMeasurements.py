@@ -142,7 +142,17 @@ def main():
         plot = plotPkgMeasurements(statesDirName, wakeupTimePath, wakeupTimeDivisor)
         plot.set_ylim(ymin=0)
         plot.set_ylabel("microseconds")
-        plot.figure.savefig(os.path.join(outputDir, wakeupTimeFileName + '_by_' + statesDirName + '.pdf'))
+        plot.figure.savefig(os.path.join(outputDir, 'cpu0_' + wakeupTimeFileName + '_by_' + statesDirName + '.pdf'))
+    except FileNotFoundError:
+        pass
+
+    wakeupTimePath = os.path.join('cpu1', wakeupTimeFileName)
+
+    try:
+        plot = plotPkgMeasurements(statesDirName, wakeupTimePath, wakeupTimeDivisor)
+        plot.set_ylim(ymin=0)
+        plot.set_ylabel("microseconds")
+        plot.figure.savefig(os.path.join(outputDir, 'cpu1_' + wakeupTimeFileName + '_by_' + statesDirName + '.pdf'))
     except FileNotFoundError:
         pass
 
