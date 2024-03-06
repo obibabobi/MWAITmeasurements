@@ -11,16 +11,12 @@ create_attribute(pkg, c2);
 create_attribute(pkg, c3);
 create_attribute(pkg, c6);
 create_attribute(pkg, c7);
-static struct attribute *pkg_stats_attributes[] = {
+static struct attribute *pkg_stats_attributes[16] = {
     &start_time_attribute,
     &end_time_attribute,
     &repetitions_attribute,
     &pkg_energy_consumption_attribute,
     &pkg_total_tsc_attribute,
-    &pkg_c2_attribute,
-    &pkg_c3_attribute,
-    &pkg_c6_attribute,
-    &pkg_c7_attribute,
     NULL};
 static struct attribute_group pkg_stats_group = {
     .attrs = pkg_stats_attributes};
@@ -33,14 +29,9 @@ create_attribute(cpu, unhalted);
 create_attribute(cpu, c3);
 create_attribute(cpu, c6);
 create_attribute(cpu, c7);
-static struct attribute *cpu_stats_attributes[] = {
+static struct attribute *cpu_stats_attributes[16] = {
     &cpu_wakeup_time_attribute,
     &cpu_wakeups_attribute,
-    &cpu_energy_consumption_attribute,
-    &cpu_unhalted_attribute,
-    &cpu_c3_attribute,
-    &cpu_c6_attribute,
-    &cpu_c7_attribute,
     NULL};
 static struct attribute_group cpu_stats_group = {
     .attrs = cpu_stats_attributes};
@@ -89,6 +80,37 @@ extern unsigned cpus_present;
 void publish_measurement_results(void)
 {
 	int err;
+
+	if (vendor == X86_VENDOR_INTEL)
+	{
+		pkg_stats_attributes[5] = &pkg_c2_attribute;
+		pkg_stats_attributes[6] = &pkg_c3_attribute;
+		pkg_stats_attributes[7] = &pkg_c6_attribute;
+		pkg_stats_attributes[8] = &pkg_c7_attribute;
+		pkg_stats_attributes[9] = NULL;
+	}
+	else
+	{
+		pkg_stats_attributes[5] = NULL;
+	}
+
+	if (vendor == X86_VENDOR_INTEL)
+	{
+		cpu_stats_attributes[2] = &cpu_unhalted_attribute;
+		cpu_stats_attributes[3] = &cpu_c3_attribute;
+		cpu_stats_attributes[4] = &cpu_c6_attribute;
+		cpu_stats_attributes[5] = &cpu_c7_attribute;
+		cpu_stats_attributes[6] = NULL;
+	}
+	else if (vendor == X86_VENDOR_AMD)
+	{
+		cpu_stats_attributes[2] = &cpu_energy_consumption_attribute;
+		cpu_stats_attributes[3] = NULL;
+	}
+	else
+	{
+		cpu_stats_attributes[2] = NULL;
+	}
 
 	err = kobject_init_and_add(&(pkg_stats.kobject), &pkg_ktype, NULL, "mwait_measurements");
 	for (unsigned i = 0; i < cpus_present; ++i)
