@@ -19,6 +19,7 @@ while getopts ":h" option; do
             exit;;
    esac
 done
+shift $((OPTIND - 1))
 
 # preparation
 pushd "$(dirname "$0")"

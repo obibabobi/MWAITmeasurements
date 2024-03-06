@@ -5,21 +5,26 @@ help() {
     echo "### Measure script ###"
     echo "######################"
     echo
-    echo "Syntax: measure.sh [-s|h] <duration>"
+    echo "Syntax: measure.sh [-s|p|h] <duration>"
     echo "Description:"
     echo "    <duration>: Duration of a single measurement in milliseconds."
     echo "                Should depend mainly on temporal resolution of power measurement method."
     echo
     echo "    -s: Generate power pattern and timestamps for synchronization with external power logging"
+    echo "    -p: Deactivate Package C-states for measurement duration (Intel)"
     echo "    -h: Print help, then quit"
 }
 
-while getopts "sh" option; do
+DEACTIVATE_PCSTATES=0
+
+while getopts "sph" option; do
     case $option in
     (s) SIGNAL_REQUESTED=true;;
+    (p) DEACTIVATE_PCSTATES=1;;
     (h) help; exit;;
     esac
 done
+shift $((OPTIND - 1))
 
 # preparation
 pushd "$(dirname "$0")"
@@ -42,7 +47,7 @@ MEASURE_DURATION=$1
 echo "$MEASURE_DURATION" > $RESULTS_DIR/duration
 
 function measure {
-    insmod mwait.ko $2 duration=$MEASURE_DURATION
+    insmod mwait.ko $2 duration=$MEASURE_DURATION deactivate_pcstates=$DEACTIVATE_PCSTATES
     cp -r /sys/mwait_measurements $RESULTS_DIR/$3/$1
     rmmod mwait
 }
@@ -75,12 +80,12 @@ if [[ -e /sys/devices/system/cpu/cpu0/cpuidle ]]; then
                 DESC=${DESC#FFH };
                 if [[ "${DESC%% *}" == 'MWAIT' ]]; then
                     MWAIT_HINT=${DESC#MWAIT };
-                    measure $NAME "mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
+                    measure $NAME "entry_mechanism=MWAIT mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
                 fi
             fi
         elif [[ "${DESC%% *}" == 'MWAIT' ]]; then   # the Intel cpuidle driver does not prefix the description
             MWAIT_HINT=${DESC#MWAIT };
-            measure $NAME "mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
+            measure $NAME "entry_mechanism=MWAIT mwait_hint=$MWAIT_HINT" $MEASUREMENT_NAME
         fi
     done
 fi

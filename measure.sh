@@ -12,17 +12,20 @@ help() {
     echo "                Should depend mainly on temporal resolution of power measurement method."
     echo
     echo "    -e: Run external power logging simultaneous to measurement"
+    echo "    -p: Deactivate Package C-states for measurement duration (Intel)"
     echo "    -h: Print help, then quit"
 }
 
-while getopts "eh" option; do
+MEASUREBOX_OPTIONS=""
+
+while getopts "eph" option; do
     case $option in
     (e) EXTERNAL_MEASUREMENT=true;;
+    (p) MEASUREBOX_OPTIONS="$MEASUREBOX_OPTIONS -p";;
     (h) help; exit;;
     esac
 done
-
-MEASUREBOX_OPTIONS=""
+shift $((OPTIND - 1))
 
 # preparation
 pushd "$(dirname "$0")"
