@@ -32,7 +32,7 @@ extern struct pkg_stat
 extern struct cpu_stat
 {
 	struct kobject kobject;
-	u64 wakeup_time[MAX_NUMBER_OF_MEASUREMENTS];
+	s64 wakeup_time[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 wakeups[MAX_NUMBER_OF_MEASUREMENTS];
 	struct cpu_attributes attributes;
 } cpu_stats[MAX_CPUS];

@@ -293,7 +293,7 @@ void evaluate_cpu(int this_cpu)
 		}
 		else
 		{
-			per_cpu(wakeup_time, this_cpu) = 0;
+			per_cpu(wakeup_time, this_cpu) = -1;
 		}
 	}
 

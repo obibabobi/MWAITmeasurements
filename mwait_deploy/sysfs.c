@@ -64,6 +64,19 @@ ssize_t format_array_into_buffer(u64 *array, int len, char *buf)
 	return bytes_written;
 }
 
+ssize_t format_array_into_buffer_signed(u64 *array, int len, char *buf)
+{
+	int bytes_written = 0;
+	int i = 0;
+
+	while (bytes_written < PAGE_SIZE && i < len)
+	{
+		bytes_written += scnprintf(buf + bytes_written, PAGE_SIZE - bytes_written, "%lld\n", array[i]);
+		++i;
+	}
+	return bytes_written;
+}
+
 ssize_t ignore_write(struct kobject *kobj, struct attribute *attr, const char *buf, size_t count)
 {
 	return count;
@@ -89,7 +102,7 @@ ssize_t show_cpu_stats(struct kobject *kobj, struct attribute *attr, char *buf)
 {
 	struct cpu_stat *stat = container_of(kobj, struct cpu_stat, kobject);
 	if (strcmp(attr->name, "wakeup_time") == 0)
-		return format_array_into_buffer(stat->wakeup_time, measurement_count, buf);
+		return format_array_into_buffer_signed(stat->wakeup_time, measurement_count, buf);
 	if (strcmp(attr->name, "wakeups") == 0)
 		return format_array_into_buffer(stat->wakeups, measurement_count, buf);
 	return output_cpu_attributes(stat, attr, buf);

@@ -20,7 +20,7 @@ extern bool redo_measurement;
 extern unsigned cpus_present;
 
 DECLARE_PER_CPU(u64, wakeups);
-DECLARE_PER_CPU(u64, wakeup_time);
+DECLARE_PER_CPU(s64, wakeup_time);
 
 bool is_leader(int cpu);
 void leader_callback(void);

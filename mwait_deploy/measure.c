@@ -32,7 +32,7 @@ static char *cpu_selection = "core";
 module_param(cpu_selection, charp, 0);
 MODULE_PARM_DESC(cpu_selection, "How the CPUs to poll instead should be selected. Supported are 'core' and 'cpu_nr'.");
 
-DEFINE_PER_CPU(u64, wakeup_time);
+DEFINE_PER_CPU(s64, wakeup_time);
 DEFINE_PER_CPU(u64, wakeups);
 u64 start_time;
 u64 end_time;
