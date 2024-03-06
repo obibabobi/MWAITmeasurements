@@ -31,7 +31,7 @@ module_param(io_port, charp, 0);
 MODULE_PARM_DESC(io_port, "If entry_mechanism is 'IOPORT', this needs to contain the io port address that has to be read.");
 static int deactivate_pcstates = 0;
 module_param(deactivate_pcstates, int, 0);
-MODULE_PARM_DESC(deactivate_pcstates, "Deactivate Package C-states for the duration of the measurement.");
+MODULE_PARM_DESC(deactivate_pcstates, "Deactivate Package C-states for the duration of the measurement. Default is '0' (PC-states enabled). '1' deactivates PC-states.");
 
 // make sure that there is enough unused space around measurement_ongoing
 // necessary because monitor surveils entire lines of memory
