@@ -19,6 +19,7 @@ DECLARE_PER_CPU(enum entry_mechanism, cpu_entry_mechanism);
 extern bool redo_measurement;
 extern unsigned cpus_present;
 
+DECLARE_PER_CPU(u64, wakeups);
 DECLARE_PER_CPU(u64, wakeup_time);
 
 bool is_leader(int cpu);

@@ -29,13 +29,14 @@ MODULE_PARM_DESC(target_subcstate, "If entry_mechanism is 'MWAIT', and mwait_hin
 static char *io_port = NULL;
 module_param(io_port, charp, 0);
 MODULE_PARM_DESC(io_port, "If entry_mechanism is 'IOPORT', this needs to contain the io port address that has to be read.");
+static int deactivate_pcstates = 0;
+module_param(deactivate_pcstates, int, 0);
+MODULE_PARM_DESC(deactivate_pcstates, "Deactivate Package C-states for the duration of the measurement.");
 
-DECLARE_PER_CPU(int, wakeups);
-
-// make sure that there is enough unused space around dummy
+// make sure that there is enough unused space around measurement_ongoing
 // necessary because monitor surveils entire lines of memory
 // the size of the monitored line varies from system to system
-// to fit all systems, a relatively large padding was selected here, making sure no other variable can be in the same 512 byte line as dummy
+// to fit all systems, a relatively large padding was selected here, making sure no other variable can be in the same 512 byte line as measurement_ongoing
 struct
 {
 	u64 padding1[63];
@@ -363,14 +364,55 @@ inline void commit_system_specific_results(unsigned number)
 	}
 }
 
+DEFINE_SPINLOCK(pkg_cst_lock);
+volatile bool first_at_pkg_cst = true;
+static u64 max_pkg_cst_backup;
+
 static void per_cpu_init(void *info)
 {
+	int err;
+
+	u64 pkg_cst_config_control;
+	u64 ia32_fixed_ctr_ctrl;
+	u64 ia32_perf_global_ctrl;
+
+	get_cpu();
+
 	if (vendor == X86_VENDOR_INTEL)
 	{
-		int err = 0;
+		err = 0;
 
-		u64 ia32_fixed_ctr_ctrl;
-		u64 ia32_perf_global_ctrl;
+		// As the MSR to control Package C-states is somehow a per-core MSR, handling it is a bit of a mess
+		// The current implementation only saves the inital max PC-state value from one core and then restores it to all
+		// Within one package this should not be a problem, as having different values for this field makes not much sense
+		// This might need to be revisited once multiple sockets should be supported
+		spin_lock(&pkg_cst_lock);
+
+		err = rdmsrl_safe(MSR_PKG_CST_CONFIG_CONTROL, &pkg_cst_config_control);
+		if (first_at_pkg_cst)
+		{
+			max_pkg_cst_backup = pkg_cst_config_control & 0b111;
+			first_at_pkg_cst = false;
+		}
+
+		spin_unlock(&pkg_cst_lock);
+
+		if (deactivate_pcstates)
+		{
+			pkg_cst_config_control &= ~0b111; // set last 3 bits to 0
+		}
+		else
+		{
+			pkg_cst_config_control |= 0b111; // set last 3 bits to 1
+		}
+		err |= wrmsrl_safe(MSR_PKG_CST_CONFIG_CONTROL, pkg_cst_config_control);
+
+		if (err)
+		{
+			printk(KERN_WARNING "WARNING: Could not change Package C-state settings.\n");
+		}
+
+		err = 0;
 
 		err = rdmsrl_safe(IA32_FIXED_CTR_CTRL, &ia32_fixed_ctr_ctrl);
 		ia32_fixed_ctr_ctrl |= 0b11 << 8;
@@ -385,6 +427,31 @@ static void per_cpu_init(void *info)
 			printk(KERN_WARNING "WARNING: Could not enable 'unhalted' register.\n");
 		}
 	}
+
+	put_cpu();
+}
+
+static void per_cpu_cleanup(void *info)
+{
+	int err;
+
+	u64 pkg_cst_config_control;
+
+	get_cpu();
+
+	err = 0;
+
+	err = rdmsrl_safe(MSR_PKG_CST_CONFIG_CONTROL, &pkg_cst_config_control);
+	pkg_cst_config_control &= ~0b111;
+	pkg_cst_config_control |= max_pkg_cst_backup;
+	err |= wrmsrl_safe(MSR_PKG_CST_CONFIG_CONTROL, pkg_cst_config_control);
+
+	if (err)
+	{
+		printk(KERN_WARNING "WARNING: Could not restore Package C-state settings.\n");
+	}
+
+	put_cpu();
 }
 
 static inline u32 get_cstate_hint(void)
@@ -651,6 +718,7 @@ int prepare_measurements(void)
 
 void cleanup_measurements(void)
 {
+	on_each_cpu(per_cpu_cleanup, NULL, 1);
 }
 
 void cleanup(void)
