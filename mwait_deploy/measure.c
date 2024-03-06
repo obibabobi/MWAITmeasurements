@@ -36,6 +36,7 @@ DEFINE_PER_CPU(u64, wakeup_time);
 DEFINE_PER_CPU(u64, wakeups);
 u64 start_time;
 u64 end_time;
+static unsigned repetition;
 
 unsigned cpus_present;
 bool redo_measurement;
@@ -135,6 +136,7 @@ static void commit_results(unsigned number)
 {
 	pkg_stats.start_time[number] = start_time;
 	pkg_stats.end_time[number] = end_time;
+	pkg_stats.repetitions[number] = repetition;
 
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{
@@ -163,7 +165,7 @@ static void evaluate(void)
 	for (unsigned i = 0; i < cpus_present; ++i)
 	{
 		evaluate_cpu(i);
-		if (per_cpu(cpu_entry_mechanism, i) != ENTRY_MECHANISM_POLL && per_cpu(wakeups, i) > WAKEUP_THRESHOLD)
+		if (per_cpu(cpu_entry_mechanism, i) != ENTRY_MECHANISM_POLL && per_cpu(wakeups, i) >= WAKEUP_THRESHOLD)
 			redo_measurement = true;
 	}
 }
@@ -172,14 +174,14 @@ static void evaluate(void)
 
 static void measure(unsigned number)
 {
-	unsigned repetition = 0;
+	repetition = 0;
 	redo_measurement = false;
 
 	do
 	{
 		if (redo_measurement)
 		{
-			if (++repetition < MAX_REPETITIONS)
+			if (++repetition <= MAX_REPETITIONS)
 			{
 				printk(KERN_INFO "Redoing measurement, repetition %u.\n", repetition);
 			}

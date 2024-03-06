@@ -25,6 +25,7 @@ extern struct pkg_stat
 	struct kobject kobject;
 	u64 start_time[MAX_NUMBER_OF_MEASUREMENTS];
 	u64 end_time[MAX_NUMBER_OF_MEASUREMENTS];
+	u64 repetitions[MAX_NUMBER_OF_MEASUREMENTS];
 	struct pkg_attributes attributes;
 } pkg_stats;
 
@@ -38,6 +39,7 @@ extern struct cpu_stat
 
 extern struct attribute start_time_attribute;
 extern struct attribute end_time_attribute;
+extern struct attribute repetitions_attribute;
 
 extern struct attribute cpu_wakeup_time_attribute;
 extern struct attribute cpu_wakeups_attribute;

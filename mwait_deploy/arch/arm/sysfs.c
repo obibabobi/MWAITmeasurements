@@ -4,9 +4,9 @@ struct pkg_stat pkg_stats;
 struct cpu_stat cpu_stats[MAX_CPUS];
 
 static struct attribute *pkg_stats_attributes[] = {
-    &pkg_energy_consumption_attribute,
     &start_time_attribute,
     &end_time_attribute,
+    &repetitions_attribute,
     NULL};
 static struct attribute_group pkg_stats_group = {
     .attrs = pkg_stats_attributes};

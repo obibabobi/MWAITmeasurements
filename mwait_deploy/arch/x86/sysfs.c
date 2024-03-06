@@ -14,6 +14,7 @@ create_attribute(pkg, c7);
 static struct attribute *pkg_stats_attributes[] = {
     &start_time_attribute,
     &end_time_attribute,
+    &repetitions_attribute,
     &pkg_energy_consumption_attribute,
     &pkg_total_tsc_attribute,
     &pkg_c2_attribute,

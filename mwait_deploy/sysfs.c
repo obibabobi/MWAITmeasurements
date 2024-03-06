@@ -46,6 +46,7 @@ void cleanup_signal_times(void)
 
 struct attribute start_time_attribute = {.name = "start_time", .mode = 0444};
 struct attribute end_time_attribute = {.name = "end_time", .mode = 0444};
+struct attribute repetitions_attribute = {.name = "repetitions", .mode = 0444};
 
 struct attribute cpu_wakeup_time_attribute = {.name = "wakeup_time", .mode = 0444};
 struct attribute cpu_wakeups_attribute = {.name = "wakeups", .mode = 0444};
@@ -79,6 +80,8 @@ ssize_t show_pkg_stats(struct kobject *kobj, struct attribute *attr, char *buf)
 		return format_array_into_buffer(stat->start_time, measurement_count, buf);
 	if (strcmp(attr->name, "end_time") == 0)
 		return format_array_into_buffer(stat->end_time, measurement_count, buf);
+	if (strcmp(attr->name, "repetitions") == 0)
+		return format_array_into_buffer(stat->repetitions, measurement_count, buf);
 	return output_pkg_attributes(stat, attr, buf);
 }
 
