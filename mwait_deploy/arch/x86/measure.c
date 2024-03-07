@@ -372,14 +372,14 @@ static void per_cpu_init(void *info)
 {
 	int err;
 
-	u64 pkg_cst_config_control;
-	u64 ia32_fixed_ctr_ctrl;
-	u64 ia32_perf_global_ctrl;
-
 	get_cpu();
 
 	if (vendor == X86_VENDOR_INTEL)
 	{
+		u64 pkg_cst_config_control;
+		u64 ia32_fixed_ctr_ctrl;
+		u64 ia32_perf_global_ctrl;
+
 		err = 0;
 
 		// As the MSR to control Package C-states is somehow a per-core MSR, handling it is a bit of a mess
@@ -435,20 +435,23 @@ static void per_cpu_cleanup(void *info)
 {
 	int err;
 
-	u64 pkg_cst_config_control;
-
 	get_cpu();
 
-	err = 0;
-
-	err = rdmsrl_safe(MSR_PKG_CST_CONFIG_CONTROL, &pkg_cst_config_control);
-	pkg_cst_config_control &= ~0b111;
-	pkg_cst_config_control |= max_pkg_cst_backup;
-	err |= wrmsrl_safe(MSR_PKG_CST_CONFIG_CONTROL, pkg_cst_config_control);
-
-	if (err)
+	if (vendor == X86_VENDOR_INTEL)
 	{
-		printk(KERN_WARNING "WARNING: Could not restore Package C-state settings.\n");
+		u64 pkg_cst_config_control;
+
+		err = 0;
+
+		err = rdmsrl_safe(MSR_PKG_CST_CONFIG_CONTROL, &pkg_cst_config_control);
+		pkg_cst_config_control &= ~0b111;
+		pkg_cst_config_control |= max_pkg_cst_backup;
+		err |= wrmsrl_safe(MSR_PKG_CST_CONFIG_CONTROL, pkg_cst_config_control);
+
+		if (err)
+		{
+			printk(KERN_WARNING "WARNING: Could not restore Package C-state settings.\n");
+		}
 	}
 
 	put_cpu();
