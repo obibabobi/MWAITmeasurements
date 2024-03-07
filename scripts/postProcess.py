@@ -187,7 +187,7 @@ def associateExternalMeasurements():
 					powerValues[i] = statistics.mean(powerValues[i])
 					powerValues[i] = round(Decimal(powerValues[i]), 3)
 				else:
-					print('No values found for ' + mType + ':' + mName + '[' + i + ']', file=sys.sterr)
+					print('No values found for ' + mType + ':' + mName + '[' + str(i) + ']', file=sys.stderr)
 					powerValues[i] = -1
 
 			writePowerValues(measurementDir, powerValues)
