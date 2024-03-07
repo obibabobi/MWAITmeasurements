@@ -148,7 +148,7 @@ void enable_percpu_interrupts(void)
 	{
 		if (i != 13)
 		{
-			enable_percpu_irq(i, 0);
+			enable_percpu_irq(i, IRQ_TYPE_NONE);
 		}
 	}
 }
