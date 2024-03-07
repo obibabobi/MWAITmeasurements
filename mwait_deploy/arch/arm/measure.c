@@ -32,8 +32,6 @@ static inline bool wakeup_handler(void)
 
 	sc = read_sysreg(CNTPCT_EL0);
 
-	// if the processor id is not read here but passed in, wakeups increase dramatically
-	// the reason for this is a mystery so far
 	this_cpu = smp_processor_id();
 
 	per_cpu(wakeups, this_cpu) += 1;
