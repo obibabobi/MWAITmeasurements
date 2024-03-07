@@ -119,7 +119,7 @@ void evaluate_global(void)
 
 void evaluate_cpu(int this_cpu)
 {
-	per_cpu(wakeup_time, this_cpu) = (per_cpu(final_sc, this_cpu) - per_cpu(end_sc, this_cpu)) * 1000000000 / sc_frequency;
+	per_cpu(wakeup_time, this_cpu) = ((per_cpu(final_sc, this_cpu) - per_cpu(end_sc, this_cpu)) * 1000000000) / sc_frequency;
 }
 
 void prepare_before_each_measurement(void)
