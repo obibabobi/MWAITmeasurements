@@ -78,12 +78,22 @@ void set_cpu_final_values(int this_cpu)
 
 void do_system_specific_sleep(int this_cpu)
 {
+	// handle POLL separately to make measured workload as simple as possible
+	if (per_cpu(cpu_entry_mechanism, this_cpu) == ENTRY_MECHANISM_POLL)
+	{
+		do
+		{
+		} while (wakeup_handler());
+
+		return;
+	}
+
 	do
 	{
 		switch (per_cpu(cpu_entry_mechanism, this_cpu))
 		{
 		case ENTRY_MECHANISM_WFI:
-			wfi();
+			asm volatile("wfi" ::: "memory");
 			break;
 
 		case ENTRY_MECHANISM_POLL:
@@ -123,7 +133,7 @@ void preliminary_checks(void)
 
 void disable_percpu_interrupts(void)
 {
-	for (int i = 0; i <= 32; ++i)
+	for (int i = 0; i <= 31; ++i)
 	{
 		if (i != 13)
 		{
@@ -134,7 +144,7 @@ void disable_percpu_interrupts(void)
 
 void enable_percpu_interrupts(void)
 {
-	for (int i = 0; i <= 32; ++i)
+	for (int i = 0; i <= 31; ++i)
 	{
 		if (i != 13)
 		{
@@ -152,7 +162,7 @@ int prepare(void)
 {
 	sc_frequency = read_sysreg(CNTFRQ_EL0) & 0xffffffff;
 
-	for (int i = 0; i <= 1000; ++i)
+	for (int i = 0; i <= 1024; ++i)
 	{
 		irq_set_status_flags(i, IRQ_DISABLE_UNLAZY);
 		disable_irq(i);
@@ -188,7 +198,7 @@ void cleanup_measurements(void)
 
 void cleanup(void)
 {
-	for (int i = 0; i <= 1000; ++i)
+	for (int i = 0; i <= 1024; ++i)
 	{
 		enable_irq(i);
 		irq_clear_status_flags(i, IRQ_DISABLE_UNLAZY);
