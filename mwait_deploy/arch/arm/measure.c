@@ -15,6 +15,16 @@ DEFINE_PER_CPU(u64, final_sc);
 
 u32 sc_frequency;
 
+static inline void measurement_end_handler(int this_cpu)
+{
+	if (is_leader(this_cpu))
+	{
+		leader_callback();
+	}
+
+	all_cpus_callback(this_cpu);
+}
+
 static inline bool wakeup_handler(void)
 {
 	u64 sc;
@@ -22,6 +32,8 @@ static inline bool wakeup_handler(void)
 
 	sc = read_sysreg(CNTPCT_EL0);
 
+	// if the processor id is not read here but passed in, wakeups increase dramatically
+	// the reason for this is a mystery so far
 	this_cpu = smp_processor_id();
 
 	per_cpu(wakeups, this_cpu) += 1;
@@ -31,14 +43,9 @@ static inline bool wakeup_handler(void)
 		return true;
 	}
 
-	if (is_leader(this_cpu))
-	{
-		leader_callback();
-	}
-
 	per_cpu(final_sc, this_cpu) = sc;
 
-	all_cpus_callback(this_cpu);
+	measurement_end_handler(this_cpu);
 
 	return false;
 }
@@ -81,10 +88,15 @@ void do_system_specific_sleep(int this_cpu)
 	// handle POLL separately to make measured workload as simple as possible
 	if (per_cpu(cpu_entry_mechanism, this_cpu) == ENTRY_MECHANISM_POLL)
 	{
-		do
-		{
-		} while (wakeup_handler());
+		u64 sc;
 
+		while ((sc = read_sysreg(CNTPCT_EL0)) < per_cpu(end_sc, this_cpu))
+		{
+			per_cpu(wakeups, this_cpu) += 1;
+		};
+
+		per_cpu(final_sc, this_cpu) = sc;
+		measurement_end_handler(this_cpu);
 		return;
 	}
 
