@@ -148,7 +148,7 @@ inline enum entry_mechanism get_signal_low_mechanism(void)
 	return ENTRY_MECHANISM_WFI;
 }
 
-void prepare(void)
+int prepare(void)
 {
 	sc_frequency = read_sysreg(CNTFRQ_EL0) & 0xffffffff;
 
@@ -157,6 +157,8 @@ void prepare(void)
 		irq_set_status_flags(i, IRQ_DISABLE_UNLAZY);
 		disable_irq(i);
 	}
+
+	return 0;
 }
 
 int prepare_measurements(void)

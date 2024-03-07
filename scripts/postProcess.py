@@ -84,7 +84,7 @@ def generatePattern(edgeCount, threshold):
 		sign *= -1
 	return pattern
 
-powerPattern = PowerPattern(generatePattern(3, Decimal(0.1)), duration)
+powerPattern = PowerPattern(generatePattern(3, Decimal(0.1)), Decimal(duration))
 
 
 @dataclass
@@ -165,6 +165,7 @@ def writePowerValues(measurementDir, powerValues):
 
 
 def associateExternalMeasurements():
+	global powerLog
 	powerLog = pd.read_csv(powerLogFile, converters={'time': decimalConverter, 'power': decimalConverter})
 
 	logStartTime = seekPattern()
