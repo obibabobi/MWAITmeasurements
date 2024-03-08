@@ -31,7 +31,7 @@ Using the measurement framework in its current form requires 3 steps to be taken
 
 These steps will be described in more detail further into this document.
 
-The way we used the framework so far is to have 2 machines, one that is the one to be measured (aka ```measurebox```),
+The way the framework was used so far is to have 2 machines, one that is the one to be measured (aka ```measurebox```),
 and another one that is in charge of controlling the measuring process and evaluating the results (aka ```controllbox```).
 Technically you can do all that on one machine, but this approach has advantages when measuring multiple machines and for development.
 Since this guide as well as the utilities are geared towards splitting these tasks between two systems, it is recommended that you do to.
@@ -131,7 +131,7 @@ user@controllbox:~# export PROJECT_BUILD_DIR=1
 The most likely cause for this behavior is that the NMIs that should terminate the measurements never reach the kernel module.
 
 
-A possible reason for this is that something is interfering with the delivery of the NMIs we configured the HPET to generate.
+A possible reason for this is that something is interfering with the delivery of the NMIs the HPET has been configured to generate.
 A likely suspect in that case is the Intel IOMMU driver.
 Please try the following kernel startup parameter:
 ```
