@@ -82,7 +82,7 @@ user@controllbox:~/MWAITmeasurements# ./measure.sh <IPv4 of the measurebox> <dur
 
 ```duration``` defines how long a single measurement should last. This is mainly dependent on your source of energy values.
 For example, x86 RAPL counts the energy used by the processor in a register, updating it every millisecond.
-A measurement duration of 100 ms might be appropriate in this case.
+A measurement duration of 100 ms has mostly been used in this case.
 
 When using external measurements with the ODROID Smart Power, the ```-e``` flag should be given.
 This flag starts the ```scripts/logPowerData.py``` script to run in the background on the ```controllbox``` during the measurement, collecting power values.
