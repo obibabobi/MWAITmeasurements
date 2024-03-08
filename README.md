@@ -34,7 +34,7 @@ These steps will be described in more detail further into this document.
 The way we used the framework so far is to have 2 machines, one that is the one to be measured (aka ```measurebox```),
 and another one that is in charge of controlling the measuring process and evaluating the results (aka ```controllbox```).
 Technically you can do all that on one machine, but this approach has advantages when measuring multiple machines and for development.
-Since this guide as well as the utilities are geared towards splitting these tasks between two systems, we recommend you do to.
+Since this guide as well as the utilities are geared towards splitting these tasks between two systems, it is recommended that you do to.
 If you want to use the provided scripts, the systems need to be able to reach each other over IPv4.
 
 
