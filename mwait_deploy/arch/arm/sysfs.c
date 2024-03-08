@@ -60,8 +60,6 @@ void publish_measurement_results(void)
 	}
 	if (err)
 		printk(KERN_ERR "ERROR: Could not properly initialize CPU stat structure in the sysfs.\n");
-
-	printk(KERN_INFO "MWAIT: Measurements done.\n");
 }
 
 void cleanup_measurement_results(void)

@@ -244,6 +244,8 @@ static int measurement_init(void)
 	cleanup_measurements();
 	publish_measurement_results();
 
+	printk(KERN_INFO "MWAIT: Measurements done.\n");
+
 	return 0;
 }
 
