@@ -214,6 +214,7 @@ void do_system_specific_sleep(int this_cpu)
 			per_cpu(wakeups, this_cpu) += 1;
 		}
 
+		per_cpu(wakeup_tsc, this_cpu) = rdtsc();
 		all_cpus_callback(this_cpu);
 		return;
 	}
@@ -236,10 +237,14 @@ void do_system_specific_sleep(int this_cpu)
 
 		case ENTRY_MECHANISM_IOPORT:
 			inb(calculated_io_port);
+
+			per_cpu(wakeup_tsc, this_cpu) = rdtsc();
 			break;
 
 		case ENTRY_MECHANISM_POLL:
 		case ENTRY_MECHANISM_UNKNOWN:
+
+			per_cpu(wakeup_tsc, this_cpu) = rdtsc();
 			break;
 		}
 
@@ -286,14 +291,7 @@ void evaluate_cpu(int this_cpu)
 	}
 	else
 	{
-		if (per_cpu(cpu_entry_mechanism, this_cpu) == ENTRY_MECHANISM_MWAIT)
-		{
-			per_cpu(wakeup_time, this_cpu) = ((per_cpu(wakeup_tsc, this_cpu) - wakeup_trigger_tsc) * 1000000) / tsc_khz;
-		}
-		else
-		{
-			per_cpu(wakeup_time, this_cpu) = -1;
-		}
+		per_cpu(wakeup_time, this_cpu) = ((per_cpu(wakeup_tsc, this_cpu) - wakeup_trigger_tsc) * 1000000) / tsc_khz;
 	}
 
 	if (vendor == X86_VENDOR_INTEL)
