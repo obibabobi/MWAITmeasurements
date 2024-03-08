@@ -141,7 +141,7 @@ void preliminary_checks(void)
 {
 }
 
-void disable_percpu_interrupts(void)
+void disable_percpu_interrupts(int this_cpu)
 {
 	for (int i = 0; i <= 31; ++i)
 	{
@@ -152,7 +152,7 @@ void disable_percpu_interrupts(void)
 	}
 }
 
-void enable_percpu_interrupts(void)
+void enable_percpu_interrupts(int this_cpu)
 {
 	for (int i = 0; i <= 31; ++i)
 	{

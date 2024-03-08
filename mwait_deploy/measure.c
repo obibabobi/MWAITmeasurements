@@ -109,16 +109,16 @@ static DEFINE_PER_CPU(unsigned long, irq_flags);
 static int seize_core(void)
 {
 	int this_cpu = get_cpu();
+	disable_percpu_interrupts(this_cpu);
 	local_irq_save(per_cpu(irq_flags, this_cpu));
-	disable_percpu_interrupts();
 
 	return this_cpu;
 }
 
 static void release_core(int this_cpu)
 {
-	enable_percpu_interrupts();
 	local_irq_restore(per_cpu(irq_flags, this_cpu));
+	enable_percpu_interrupts(this_cpu);
 	put_cpu();
 }
 
@@ -181,8 +181,9 @@ static void measure(unsigned number)
 	{
 		if (redo_measurement)
 		{
-			if (++repetition <= MAX_REPETITIONS)
+			if (repetition < MAX_REPETITIONS)
 			{
+				++repetition;
 				printk(KERN_INFO "Redoing measurement, repetition %u.\n", repetition);
 			}
 			else

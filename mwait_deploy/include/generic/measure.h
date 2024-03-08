@@ -44,8 +44,8 @@ void setup_wakeup(int this_cpu);
 void do_system_specific_sleep(int this_cpu);
 void evaluate_global(void);
 void evaluate_cpu(int this_cpu);
-void disable_percpu_interrupts(void);
-void enable_percpu_interrupts(void);
+void disable_percpu_interrupts(int this_cpu);
+void enable_percpu_interrupts(int this_cpu);
 enum entry_mechanism get_signal_low_mechanism(void);
 
 #endif

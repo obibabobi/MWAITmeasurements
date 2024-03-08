@@ -47,7 +47,6 @@ struct
 static u32 calculated_mwait_hint;
 static u16 calculated_io_port;
 static u32 rapl_unit;
-static int apic_id_of_cpu0;
 static int hpet_pin;
 static u32 hpet_period;
 static u32 cpu_model;
@@ -553,75 +552,60 @@ static inline u32 get_rapl_unit(void)
 	return 10000000 / (1 << val);
 }
 
-void disable_percpu_interrupts(void)
+#define APIC_LVT_ENTRY_COUNT (7)
+
+u32 apic_lvt_entries[] = {
+    APIC_LVTT,
+    APIC_LVTTHMR,
+    APIC_LVTPC,
+    APIC_LVT0,
+    APIC_LVT1,
+    APIC_LVTERR,
+    APIC_LVTCMCI};
+DEFINE_PER_CPU(u32[APIC_LVT_ENTRY_COUNT], apic_lvt_backups);
+
+void disable_percpu_interrupts(int this_cpu)
 {
 	u32 value;
 
-	value = apic_read(APIC_LVTT);
-	value |= APIC_LVT_MASKED;
-	apic_write(APIC_LVTT, value);
-
-	value = apic_read(APIC_LVTTHMR);
-	value |= APIC_LVT_MASKED;
-	apic_write(APIC_LVTTHMR, value);
-
-	value = apic_read(APIC_LVTPC);
-	value |= APIC_LVT_MASKED;
-	apic_write(APIC_LVTPC, value);
-
-	value = apic_read(APIC_LVT0);
-	value |= APIC_LVT_MASKED;
-	apic_write(APIC_LVT0, value);
-
-	value = apic_read(APIC_LVT1);
-	value |= APIC_LVT_MASKED;
-	apic_write(APIC_LVT1, value);
-
-	value = apic_read(APIC_LVTERR);
-	value |= APIC_LVT_MASKED;
-	apic_write(APIC_LVTERR, value);
-
-	value = apic_read(APIC_LVTCMCI);
-	value |= APIC_LVT_MASKED;
-	apic_write(APIC_LVTCMCI, value);
+	for (int i = 0; i < APIC_LVT_ENTRY_COUNT; ++i)
+	{
+		value = apic_read(apic_lvt_entries[i]);
+		per_cpu(apic_lvt_backups[i], this_cpu) = value;
+		value |= APIC_LVT_MASKED;
+		apic_write(apic_lvt_entries[i], value);
+	}
 }
 
-void enable_percpu_interrupts(void)
+#define APIC_LVT_TIMER_MODE_ONESHOT (0x0)
+#define APIC_LVT_TIMER_MODE_PERIODIC (1 << 17)
+#define APIC_LVT_TIMER_MODE_TSC_DEADLINE (1 << 18)
+
+void enable_percpu_interrupts(int this_cpu)
 {
 	u32 value;
 
-	value = apic_read(APIC_LVTCMCI);
-	value &= ~APIC_LVT_MASKED;
-	apic_write(APIC_LVTCMCI, value);
+	for (int i = 0; i < APIC_LVT_ENTRY_COUNT; ++i)
+	{
+		apic_write(apic_lvt_entries[i], per_cpu(apic_lvt_backups[i], this_cpu));
+	}
 
-	value = apic_read(APIC_LVTERR);
-	value &= ~APIC_LVT_MASKED;
-	apic_write(APIC_LVTERR, value);
-
-	value = apic_read(APIC_LVT1);
-	value &= ~APIC_LVT_MASKED;
-	apic_write(APIC_LVT1, value);
-
-	value = apic_read(APIC_LVT0);
-	value &= ~APIC_LVT_MASKED;
-	apic_write(APIC_LVT0, value);
-
-	value = apic_read(APIC_LVTPC);
-	value &= ~APIC_LVT_MASKED;
-	apic_write(APIC_LVTPC, value);
-
-	value = apic_read(APIC_LVTTHMR);
-	value &= ~APIC_LVT_MASKED;
-	apic_write(APIC_LVTTHMR, value);
-
+	// Restart the timer appropriately
+	// Necessary so the system continues working properly
 	value = apic_read(APIC_LVTT);
-	value &= ~APIC_LVT_MASKED;
-	apic_write(APIC_LVTT, value);
-
-	// Restart the timer, if it is in oneshot mode
-	// Necessary, so the system continues working properly
-	if (!(value & APIC_LVT_TIMER_MODE_MASK))
+	if ((value & APIC_LVT_TIMER_MODE_MASK) == APIC_LVT_TIMER_MODE_ONESHOT)
+	{
 		apic_write(APIC_TMICT, 1);
+	}
+	else if ((value & APIC_LVT_TIMER_MODE_MASK) == APIC_LVT_TIMER_MODE_PERIODIC)
+	{
+		apic_write(APIC_TMICT, apic_read(APIC_TMICT));
+	}
+	else if ((value & APIC_LVT_TIMER_MODE_MASK) == APIC_LVT_TIMER_MODE_TSC_DEADLINE)
+	{
+		if (wrmsrl_safe(MSR_IA32_TSC_DEADLINE, rdtsc()))
+			printk(KERN_WARNING "Error when trying to restart Local APIC Timer on CPU %i!\n", this_cpu);
+	}
 }
 
 inline enum entry_mechanism get_signal_low_mechanism(void)
@@ -631,9 +615,11 @@ inline enum entry_mechanism get_signal_low_mechanism(void)
 
 int prepare(void)
 {
+	int apic_id_of_leader;
+
 	register_nmi_handler(NMI_UNKNOWN, measurement_callback, NMI_FLAG_FIRST, "measurement_callback");
 
-	apic_id_of_cpu0 = default_cpu_present_to_apicid(0);
+	apic_id_of_leader = default_cpu_present_to_apicid(0);
 
 	hpet_period = get_hpet_period();
 	hpet_pin = select_hpet_pin();
@@ -644,7 +630,7 @@ int prepare(void)
 	}
 	printk(KERN_INFO "Using IOAPIC pin %i for HPET.\n", hpet_pin);
 
-	setup_ioapic_for_measurement(apic_id_of_cpu0, hpet_pin);
+	setup_ioapic_for_measurement(apic_id_of_leader, hpet_pin);
 
 	return 0;
 }
