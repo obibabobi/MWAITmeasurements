@@ -2,7 +2,6 @@
 #include "sysfs.h"
 
 #include <linux/moduleparam.h>
-#include <linux/percpu.h>
 #include <linux/interrupt.h>
 
 static char *entry_mechanism = "WFI";

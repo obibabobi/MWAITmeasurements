@@ -2,15 +2,12 @@
 #include "sysfs.h"
 
 #include <linux/moduleparam.h>
-#include <linux/percpu.h>
-#include <linux/sched/clock.h>
-#include <linux/delay.h>
 #include <asm/mwait.h>
 #include <asm/hpet.h>
-#include <asm/nmi.h>
 #include <asm/apic.h>
-#include <asm/msr-index.h>
 #include <asm/io_apic.h>
+#include <asm/nmi.h>
+#include <asm/msr-index.h>
 
 #define APIC_LVT_TIMER_MODE_MASK (0x3 << 17)
 
