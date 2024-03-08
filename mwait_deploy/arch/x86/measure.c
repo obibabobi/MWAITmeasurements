@@ -112,6 +112,10 @@ void wakeup_other_cpus(void)
 {
 	wakeup_trigger_tsc = rdtsc();
 	padding.measurement_ongoing = false;
+	if (requested_entry_mechanism == ENTRY_MECHANISM_IOPORT)
+	{
+		apic->send_IPI_allbutself(NMI_VECTOR);
+	}
 }
 
 #define read_msr(msr, p)                           \
