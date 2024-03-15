@@ -3,9 +3,7 @@
 
 #include <linux/moduleparam.h>
 #include <asm/mwait.h>
-#include <asm/hpet.h>
 #include <asm/apic.h>
-#include <asm/io_apic.h>
 #include <asm/nmi.h>
 #include <asm/msr-index.h>
 
@@ -44,11 +42,8 @@ struct
 static u32 calculated_mwait_hint;
 static u16 calculated_io_port;
 static u32 rapl_unit;
-static int hpet_pin;
-static u32 hpet_period;
 static u32 cpu_model;
 static u32 cpu_family;
-static int first;
 
 unsigned vendor;
 
@@ -68,41 +63,17 @@ DEFINE_PER_CPU(u64, start_c7);
 DEFINE_PER_CPU(u64, final_c7);
 DEFINE_PER_CPU(u64, wakeup_tsc);
 static u64 wakeup_trigger_tsc;
+static u64 end_tsc;
 static u64 start_rapl, final_rapl, energy_consumption;
 static u64 start_tsc, final_tsc;
 static u64 start_pkg_c2, final_pkg_c2;
 static u64 start_pkg_c3, final_pkg_c3;
 static u64 start_pkg_c6, final_pkg_c6;
 static u64 start_pkg_c7, final_pkg_c7;
-static u64 hpet_comparator, hpet_counter;
 
 static inline bool is_cpu_model(u32 family, u32 model)
 {
 	return cpu_family == family && cpu_model == model;
-}
-
-static int measurement_callback(unsigned int val, struct pt_regs *regs)
-{
-	// this measurement is taken here to get the value as early as possible
-	u64 hpet_counter_local = get_hpet_counter();
-
-	int this_cpu = smp_processor_id();
-
-	if (!is_leader(this_cpu))
-		return NMI_HANDLED;
-
-	if (!first && is_cpu_model(0x6, 0x5e))
-	{
-		++first;
-		return NMI_HANDLED;
-	}
-
-	// only commit the taken time to the global variable if this point is reached
-	hpet_counter = hpet_counter_local;
-
-	leader_callback();
-
-	return NMI_HANDLED;
 }
 
 void wakeup_other_cpus(void)
@@ -167,9 +138,26 @@ void set_cpu_start_values(int this_cpu)
 	}
 }
 
+#define APIC_LVT_TIMER_MODE_ONESHOT (0x0)
+#define APIC_LVT_TIMER_MODE_PERIODIC (1 << 17)
+#define APIC_LVT_TIMER_MODE_TSC_DEADLINE (1 << 18)
+
+#define APIC_LVT_VECTOR_MASK (0xff)
+
 void setup_leader_wakeup(int this_cpu)
 {
-	hpet_comparator = setup_hpet_for_measurement(duration, hpet_pin);
+	u32 value;
+	u64 ticks;
+
+	value = apic_read(APIC_LVTT);
+	value &= APIC_LVT_VECTOR_MASK;
+	value |= APIC_LVT_TIMER_MODE_TSC_DEADLINE;
+	apic_write(APIC_LVTT, value);
+
+	ticks = tsc_khz * duration;
+	end_tsc = rdtsc() + ticks;
+	if (unlikely(wrmsrl_safe(MSR_IA32_TSC_DEADLINE, end_tsc)))
+		printk(KERN_ERR "Error when trying to set up wake-up interrupt!\n");
 }
 
 void setup_wakeup(int this_cpu)
@@ -207,15 +195,21 @@ void set_cpu_final_values(int this_cpu)
 
 void do_system_specific_sleep(int this_cpu)
 {
+	u32 wake_up_on_interrupt = is_leader(this_cpu) ? 0x1 : 0;
+
 	// handle POLL entry mechanism separately to minimize fluctuation
 	if (per_cpu(cpu_entry_mechanism, this_cpu) == ENTRY_MECHANISM_POLL)
 	{
-		while (padding.measurement_ongoing)
+		u64 tsc;
+
+		while ((tsc = rdtsc()) < end_tsc)
 		{
 			per_cpu(wakeups, this_cpu) += 1;
 		}
 
-		per_cpu(wakeup_tsc, this_cpu) = rdtsc();
+		per_cpu(wakeup_tsc, this_cpu) = tsc;
+		if (is_leader(this_cpu))
+			leader_callback();
 		all_cpus_callback(this_cpu);
 		return;
 	}
@@ -231,7 +225,7 @@ void do_system_specific_sleep(int this_cpu)
 			if (!padding.measurement_ongoing)
 				break;
 
-			asm volatile("mwait;" ::"a"(calculated_mwait_hint), "c"(0));
+			asm volatile("mwait;" ::"a"(calculated_mwait_hint), "c"(wake_up_on_interrupt));
 
 			per_cpu(wakeup_tsc, this_cpu) = rdtsc();
 			break;
@@ -245,11 +239,16 @@ void do_system_specific_sleep(int this_cpu)
 		case ENTRY_MECHANISM_POLL:
 		case ENTRY_MECHANISM_UNKNOWN:
 
-			per_cpu(wakeup_tsc, this_cpu) = rdtsc();
 			break;
 		}
 
 		per_cpu(wakeups, this_cpu) += 1;
+
+		if (is_leader(this_cpu) && rdtsc() >= end_tsc)
+		{
+			leader_callback();
+			break;
+		}
 	}
 
 	all_cpus_callback(this_cpu);
@@ -288,11 +287,18 @@ void evaluate_cpu(int this_cpu)
 {
 	if (is_leader(this_cpu))
 	{
-		per_cpu(wakeup_time, this_cpu) = ((hpet_counter - hpet_comparator) * hpet_period) / 1000000;
+		per_cpu(wakeup_time, this_cpu) = ((per_cpu(wakeup_tsc, 0) - end_tsc) * 1000000) / tsc_khz;
 	}
 	else
 	{
-		per_cpu(wakeup_time, this_cpu) = ((per_cpu(wakeup_tsc, this_cpu) - wakeup_trigger_tsc) * 1000000) / tsc_khz;
+		if (per_cpu(cpu_entry_mechanism, this_cpu) == ENTRY_MECHANISM_POLL)
+		{
+			per_cpu(wakeup_time, this_cpu) = ((per_cpu(wakeup_tsc, this_cpu) - end_tsc) * 1000000) / tsc_khz;
+		}
+		else
+		{
+			per_cpu(wakeup_time, this_cpu) = ((per_cpu(wakeup_tsc, this_cpu) - wakeup_trigger_tsc) * 1000000) / tsc_khz;
+		}
 	}
 
 	if (vendor == X86_VENDOR_INTEL)
@@ -325,13 +331,11 @@ void evaluate_cpu(int this_cpu)
 
 void prepare_before_each_measurement(void)
 {
-	first = 0;
 	padding.measurement_ongoing = true;
 }
 
 void cleanup_after_each_measurement(void)
 {
-	restore_hpet_after_measurement();
 }
 
 inline void commit_system_specific_results(unsigned number)
@@ -576,10 +580,6 @@ void disable_percpu_interrupts(int this_cpu)
 	}
 }
 
-#define APIC_LVT_TIMER_MODE_ONESHOT (0x0)
-#define APIC_LVT_TIMER_MODE_PERIODIC (1 << 17)
-#define APIC_LVT_TIMER_MODE_TSC_DEADLINE (1 << 18)
-
 void enable_percpu_interrupts(int this_cpu)
 {
 	u32 value;
@@ -614,23 +614,6 @@ inline enum entry_mechanism get_signal_low_mechanism(void)
 
 int prepare(void)
 {
-	int apic_id_of_leader;
-
-	register_nmi_handler(NMI_UNKNOWN, measurement_callback, NMI_FLAG_FIRST, "measurement_callback");
-
-	apic_id_of_leader = default_cpu_present_to_apicid(0);
-
-	hpet_period = get_hpet_period();
-	hpet_pin = select_hpet_pin();
-	if (hpet_pin == -1)
-	{
-		printk(KERN_ERR "No suitable pin found for HPET, aborting!\n");
-		return 1;
-	}
-	printk(KERN_INFO "Using IOAPIC pin %i for HPET.\n", hpet_pin);
-
-	setup_ioapic_for_measurement(apic_id_of_leader, hpet_pin);
-
 	return 0;
 }
 
@@ -711,6 +694,4 @@ void cleanup_measurements(void)
 
 void cleanup(void)
 {
-	restore_ioapic_after_measurement();
-	unregister_nmi_handler(NMI_UNKNOWN, "measurement_callback");
 }
