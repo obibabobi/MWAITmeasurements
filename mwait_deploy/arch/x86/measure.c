@@ -63,7 +63,7 @@ DEFINE_PER_CPU(u64, start_c7);
 DEFINE_PER_CPU(u64, final_c7);
 DEFINE_PER_CPU(u64, wakeup_tsc);
 static u64 wakeup_trigger_tsc;
-static u64 end_tsc;
+volatile u64 end_tsc;
 static u64 start_rapl, final_rapl, energy_consumption;
 static u64 start_tsc, final_tsc;
 static u64 start_pkg_c2, final_pkg_c2;
@@ -332,6 +332,11 @@ void evaluate_cpu(int this_cpu)
 void prepare_before_each_measurement(void)
 {
 	padding.measurement_ongoing = true;
+
+	// prevents cpus in POLL from waking up immediately if they reach the
+	// while condition before the leader has finished setting up the wake-up
+	// interrupt
+	end_tsc = U64_MAX;
 }
 
 void cleanup_after_each_measurement(void)
