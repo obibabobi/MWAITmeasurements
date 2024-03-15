@@ -15,19 +15,17 @@ Thanks to [@mhaehnel](https://github.com/mhaehnel) for providing this tool!
 This guide's goal is to enable you to utilize this measurement framework on your machines.
 That being said, it is still in development and has so far not been tested on a lot of different systems.
 Experience has shown that some tinkering is likely necessary when trying new machines.
-At the end of this guide, under [Troubleshooting](#Troubleshooting), some known problems as well as their solutions are listed.
-Please try those if you have trouble using the framework!
 
 So far, this framework can be used with x86 and ARM.
+It has been mainly tested with the 6.2.9 version of the Linux kernel.
 
 
 # General Setup
 
-Using the measurement framework in its current form requires 3 steps to be taken, namely:
+Using the measurement framework in its current form requires 2 steps to be taken, namely:
 
-1. Building and installing the custom linux kernel [x86 only]
-2. Deploying and compiling the kernel module
-3. Measuring
+1. Deploying and compiling the kernel module
+2. Measuring
 
 These steps will be described in more detail further into this document.
 
@@ -40,27 +38,7 @@ If you want to use the provided scripts, the systems need to be able to reach ea
 
 # Setup Steps
 
-## 1. Installing the custom linux kernel [x86 only]
-
-Since some small changes to the linux kernel code were necessary to achieve the required results,
-a custom kernel has to be installed on the ```measurebox``` for it to work with the kernel module.
-For this, you need the custom kernel source code in the ```linuxMWAIT``` submodule that is based on linux version 6.2.9.
-Please download it, compile the kernel as appropriate for your machine and install it.
-
-On debian this process could look something like this:
-```console
-root@measurebox:~# git clone https://github.com/obibabobi/linuxMWAIT.git
-root@measurebox:~# cd linuxMWAIT
-root@measurebox:~/linuxMWAIT# cp /boot/config-$(uname --kernel-release) .config
-root@measurebox:~/linuxMWAIT# make olddefconfig
-root@measurebox:~/linuxMWAIT# make
-root@measurebox:~/linuxMWAIT# make modules_install
-root@measurebox:~/linuxMWAIT# make install
-```
-Then reboot into the newly installed kernel.
-
-
-## 2. Deploy and compile the kernel module
+## 1. Deploy and compile the kernel module
 
 In this step, the files necessary for compiling the kernel module and executing a measurement run need to be transferred from the ```controllbox``` to the ```measurebox```.
 These files can be found in the ```mwait_deploy``` folder.
@@ -72,7 +50,7 @@ user@controllbox:~/MWAITmeasurements# ./deploy.sh <IPv4 of the measurebox>
 ```
 
 
-## 3. Measure
+## 2. Measure
 
 The last step is to use the compiled kernel module to take measurements.
 For this step again a script (```measure.sh```) exists, which can be used as follows:
@@ -112,37 +90,3 @@ By default, the idle states used by the cpuidle driver are measured, as well as 
 New measurements are added by calling the ```measure``` function.
 This function's parameters are the name of the specific measurement, then the parameters to be used when inserting the kernel module and finally the name of the folder to put the results in.
 For information on the available parameters of the kernel module, please execute ```modinfo``` on the compiled module.
-
-## Development
-
-If, during development, you want to compile the kernel module on a machine where the custom kernel is not installed, you can easily compile against the ```linuxMWAIT``` directory instead of the kernel build directory of your current system.
-For this, the submodule in ```linuxMWAIT``` must have been cloned and prepared (with ```make prepare```).
-To enable compilation against it, the symbol ```PROJECT_BUILD_DIR``` has to be defined when running ```make``` in the ```mwait_deploy``` directory.
-There are multiple ways to do this, but the most comfortable way to enable this for the entire session is executing the following command once:
-```console
-user@controllbox:~# export PROJECT_BUILD_DIR=1
-```
-
-
-# Troubleshooting
-
-## Kernel module does not terminate
-
-The most likely cause for this behavior is that the NMIs that should terminate the measurements never reach the kernel module.
-
-
-A possible reason for this is that something is interfering with the delivery of the NMIs the HPET has been configured to generate.
-A likely suspect in that case is the Intel IOMMU driver.
-Please try the following kernel startup parameter:
-```
-intremap=off
-```
-
-
-## Kernel NULL pointer dereference
-
-If, on insertion of the kernel module, it is immediately killed because of a "Kernel NULL pointer dereference", the kernel may have disabled the HPET on startup.
-Please try force-enabling the HPET using the following kernel startup parameter:
-```
-hpet=force
-```
