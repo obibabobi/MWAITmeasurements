@@ -515,6 +515,10 @@ void preliminary_checks(void)
 	{
 		printk(KERN_WARNING "WARNING: Mwait Power Management not supported.\n");
 	}
+	if (!(c & (1 << 1)))
+	{
+		printk(KERN_WARNING "WARNING: Masked interrupts as break events not supported.\n");
+	}
 
 	a = 0x80000007;
 	asm("cpuid;"
