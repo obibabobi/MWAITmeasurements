@@ -2,6 +2,8 @@
 #include "sysfs.h"
 
 #include <linux/moduleparam.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <asm/mwait.h>
 #include <asm/apic.h>
 #include <asm/nmi.h>
@@ -623,6 +625,12 @@ inline enum entry_mechanism get_signal_low_mechanism(void)
 
 int prepare(void)
 {
+	for (int i = 0; i <= 255; ++i)
+	{
+		irq_set_status_flags(i, IRQ_DISABLE_UNLAZY);
+		disable_irq(i);
+	}
+
 	return 0;
 }
 
@@ -703,4 +711,9 @@ void cleanup_measurements(void)
 
 void cleanup(void)
 {
+	for (int i = 0; i <= 255; ++i)
+	{
+		enable_irq(i);
+		irq_clear_status_flags(i, IRQ_DISABLE_UNLAZY);
+	}
 }
