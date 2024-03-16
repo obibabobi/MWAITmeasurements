@@ -111,7 +111,7 @@ void wakeup_other_cpus(void)
 	padding.measurement_ongoing = false;
 	if (requested_entry_mechanism == ENTRY_MECHANISM_IOPORT)
 	{
-		apic->send_IPI_allbutself(NMI_VECTOR);
+		apic->send_IPI_allbutself(LOCAL_TIMER_VECTOR);
 	}
 }
 
