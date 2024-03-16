@@ -11,7 +11,10 @@ mwait-y := measure.o sysfs.o arch/$(ARCH)/measure.o arch/$(ARCH)/sysfs.o
 ccflags-y := -I$(src)/include -I$(src)/arch/$(ARCH)/include
 
 PWD := $(CURDIR)
-BUILD_DIR := /lib/modules/$(shell uname -r)/build
+
+ifeq ($(BUILD_DIR),)
+	BUILD_DIR := /lib/modules/$(shell uname -r)/build
+endif
 
 all: 
 	$(MAKE) -C $(BUILD_DIR) M=$(PWD) modules

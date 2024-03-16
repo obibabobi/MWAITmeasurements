@@ -1,23 +1,26 @@
 {
+    "env": {
+        "linuxPath": "${workspaceFolder}/../linux-6.2.9"
+    },
     "configurations": [
         {
             "name": "linux-x64",
             "includePath": [
-                "${workspaceFolder}/linuxMWAIT/include",
-                "${workspaceFolder}/linuxMWAIT/include/generated",
-                "${workspaceFolder}/linuxMWAIT/include/uapi",
-                "${workspaceFolder}/linuxMWAIT/include/generated/uapi",
-                "${workspaceFolder}/linuxMWAIT/arch/x86/include",
-                "${workspaceFolder}/linuxMWAIT/arch/x86/include/generated",
-                "${workspaceFolder}/linuxMWAIT/arch/x86/include/uapi",
-                "${workspaceFolder}/linuxMWAIT/arch/x86/include/generated/uapi",
+                "${linuxPath}/include",
+                "${linuxPath}/include/generated",
+                "${linuxPath}/include/uapi",
+                "${linuxPath}/include/generated/uapi",
+                "${linuxPath}/arch/x86/include",
+                "${linuxPath}/arch/x86/include/generated",
+                "${linuxPath}/arch/x86/include/uapi",
+                "${linuxPath}/arch/x86/include/generated/uapi",
                 "${workspaceFolder}/mwait_deploy/include",
                 "${workspaceFolder}/mwait_deploy/arch/x86/include"
             ],
             "compilerArgs": [
                 "-nostdinc",
-                "-include", "${workspaceFolder}/linuxMWAIT/include/linux/kconfig.h",
-                "-include", "${workspaceFolder}/linuxMWAIT/include/linux/compiler_types.h"
+                "-include", "${linuxPath}/include/linux/kconfig.h",
+                "-include", "${linuxPath}/include/linux/compiler_types.h"
             ],
             "defines": [
                 "__KERNEL__",
@@ -30,21 +33,21 @@
         {
             "name": "linux-arm64",
             "includePath": [
-                "${workspaceFolder}/linuxMWAIT/include",
-                "${workspaceFolder}/linuxMWAIT/include/generated",
-                "${workspaceFolder}/linuxMWAIT/include/uapi",
-                "${workspaceFolder}/linuxMWAIT/include/generated/uapi",
-                "${workspaceFolder}/linuxMWAIT/arch/arm64/include",
-                "${workspaceFolder}/linuxMWAIT/arch/arm64/include/uapi",
-                "${workspaceFolder}/linuxMWAIT/arch/arm64/include/generated",
-                "${workspaceFolder}/linuxMWAIT/arch/arm64/include/generated/uapi",
+                "${linuxPath}/include",
+                "${linuxPath}/include/generated",
+                "${linuxPath}/include/uapi",
+                "${linuxPath}/include/generated/uapi",
+                "${linuxPath}/arch/arm64/include",
+                "${linuxPath}/arch/arm64/include/uapi",
+                "${linuxPath}/arch/arm64/include/generated",
+                "${linuxPath}/arch/arm64/include/generated/uapi",
                 "${workspaceFolder}/mwait_deploy/include",
                 "${workspaceFolder}/mwait_deploy/arch/arm/include"
             ],
             "compilerArgs": [
                 "-nostdinc",
-                "-include", "${workspaceFolder}/linuxMWAIT/include/linux/kconfig.h",
-                "-include", "${workspaceFolder}/linuxMWAIT/include/linux/compiler_types.h"
+                "-include", "${linuxPath}/include/linux/kconfig.h",
+                "-include", "${linuxPath}/include/linux/compiler_types.h"
             ],
             "defines": [
                 "__KERNEL__",

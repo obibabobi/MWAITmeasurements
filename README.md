@@ -90,3 +90,8 @@ By default, the idle states used by the cpuidle driver are measured, as well as 
 New measurements are added by calling the ```measure``` function.
 This function's parameters are the name of the specific measurement, then the parameters to be used when inserting the kernel module and finally the name of the folder to put the results in.
 For information on the available parameters of the kernel module, please execute ```modinfo``` on the compiled module.
+
+## Compiling against a specific build directory
+
+If you want the Makefile to compile the kernel module against a specific kernel build directory, you can set up the environment variable ```BUILD_DIR``` pointing to that directory prior to calling make.
+If no ```BUILD_DIR``` has been specified, the build directory of the currently running kernel will be used.
