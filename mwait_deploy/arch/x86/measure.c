@@ -9,8 +9,6 @@
 #include <asm/nmi.h>
 #include <asm/msr-index.h>
 
-#define APIC_LVT_TIMER_MODE_MASK (0x3 << 17)
-
 static char *entry_mechanism = "MWAIT";
 module_param(entry_mechanism, charp, 0);
 MODULE_PARM_DESC(entry_mechanism, "The mechanism used to enter the C-State. Supported are 'MWAIT', 'IOPORT' and 'POLL'. Default is 'MWAIT'.");
@@ -145,6 +143,7 @@ void set_cpu_start_values(int this_cpu)
 #define APIC_LVT_TIMER_MODE_TSC_DEADLINE (1 << 18)
 
 #define APIC_LVT_VECTOR_MASK (0xff)
+#define APIC_LVT_TIMER_MODE_MASK (0x3 << 17)
 
 void setup_leader_wakeup(int this_cpu)
 {
